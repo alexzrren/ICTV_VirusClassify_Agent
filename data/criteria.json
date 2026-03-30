@@ -1,0 +1,648 @@
+{
+  "coronaviridae": {
+    "family": "Coronaviridae",
+    "source_file": "../ictv_txt/coronaviridae.txt",
+    "subfamily_demarcation": {
+      "primary_method": "phylogeny + genetic_distance",
+      "regions": ["replicase"],
+      "thresholds": {},
+      "description": "Subfamilies (Letovirinae, Orthocoronavirinae, Pitovirinae) are distinguished by host range (mammals/birds, amphibians, bony fish) and deep phylogenetic divergence in replicase genes."
+    },
+    "genus_demarcation": {
+      "primary_method": "phylogeny + pairwise_patristic_distance",
+      "regions": ["replicase_ORF1b", "whole_genome"],
+      "thresholds": {},
+      "description": "Genus demarcation based on PPD (pairwise patristic distance) thresholds applied to replicase ORF1b phylogeny. Thresholds vary by subfamily."
+    },
+    "species_demarcation": {
+      "primary_method": "phylogeny + pairwise_patristic_distance",
+      "regions": ["replicase_ORF1b"],
+      "thresholds": {},
+      "description": "Species demarcation based on PPD thresholds for which the number of taxa clusters remains constant. No single fixed nucleotide/amino acid identity threshold across all genera."
+    },
+    "reference_gene": "RdRp",
+    "notes": "MSL40 uses binomial names (e.g. Betacoronavirus gravedinis). Demarcation thresholds are genus-specific, not family-wide."
+  },
+  "picornaviridae": {
+    "family": "Picornaviridae",
+    "source_file": "../ictv_txt/picornaviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "aa_divergence",
+      "regions": ["P1_capsid", "2C_helicase", "3C_protease", "3D_polymerase"],
+      "thresholds": {
+        "aa_divergence_P1_min": 0.66,
+        "aa_divergence_2C_3C_3D_min": 0.64
+      },
+      "description": "Members of all known picornavirus genera differ by: significant divergence exceeding 66% (per site) in P1 capsid and 64% in 2C helicase, 3C protease, and 3D polymerase. Also lack detectable homology in L, 2B, 3A, 3B proteins."
+    },
+    "species_demarcation": {
+      "primary_method": "aa_identity + phylogeny",
+      "regions": ["P1_capsid", "2C_helicase", "3C_protease", "3D_polymerase"],
+      "thresholds": {},
+      "description": "Species share significant aa identity in P1, 2C, 3C, 3D proteins; monophyly in phylogenetic trees; essentially identical genome maps; compatibility in proteolytic processing, replication, encapsidation and genetic recombination."
+    },
+    "reference_gene": "3D_polymerase",
+    "notes": "No single numerical species-level threshold; criteria combine sequence identity, monophyly, and biological properties."
+  },
+  "paramyxoviridae": {
+    "family": "Paramyxoviridae",
+    "source_file": "../ictv_txt/paramyxoviridae.txt",
+    "subfamily_demarcation": {
+      "primary_method": "genetic_distance",
+      "regions": ["L_protein"],
+      "thresholds": {
+        "genetic_distance_Metaparamyxovirinae": 0.64,
+        "genetic_distance_Avulavirinae": 0.80,
+        "genetic_distance_Orthoparamyxovirinae": 0.82,
+        "genetic_distance_Rubulavirinae": 0.90
+      },
+      "description": "Subfamily demarcation based on genetic distance (substitutions per site) from node distinguishing Paramyxoviridae from Sunviridae, computed from complete L protein amino acid sequences."
+    },
+    "genus_demarcation": {
+      "primary_method": "genetic_distance + phylogeny",
+      "regions": ["L_protein"],
+      "thresholds": {},
+      "description": "Current taxonomic structure based on comparison of complete L protein amino acid sequences. Genus membership based on monophyly of L protein."
+    },
+    "species_demarcation": {
+      "primary_method": "genetic_distance + phylogeny",
+      "regions": ["L_protein"],
+      "thresholds": {},
+      "description": "Species demarcation based on L protein phylogeny. ML tree with JTT matrix-based model."
+    },
+    "reference_gene": "L_protein",
+    "notes": "L protein is the sole molecular marker used for all levels. Genetic distances in substitutions per site."
+  },
+  "flaviviridae": {
+    "family": "Flaviviridae",
+    "source_file": "../ictv_txt/flaviviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["NS5_RdRp", "NS5B_RdRp"],
+      "thresholds": {},
+      "description": "Genera distinguished by phylogenetic analysis of conserved domains of NS5 (flaviviruses) or NS5B (hepaciviruses/pestiviruses) RdRp."
+    },
+    "species_demarcation": {
+      "primary_method": "phylogeny + nt_identity",
+      "regions": ["NS5_RdRp", "partial_NS5B"],
+      "thresholds": {},
+      "description": "Species demarcation based on phylogenetic relationships of RdRP conserved domain. Partial gene sequences between positions 8040-8897 (numbered using HCV AF011751)."
+    },
+    "reference_gene": "NS5_RdRp",
+    "notes": "No explicit numerical thresholds in ICTV report; criteria are primarily phylogeny-based."
+  },
+  "togaviridae": {
+    "family": "Togaviridae",
+    "source_file": "../ictv_txt/togaviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["nonstructural_proteins", "structural_proteins"],
+      "thresholds": {},
+      "description": "Genus demarcation by deep phylogenetic divergence across whole coding region."
+    },
+    "species_demarcation": {
+      "primary_method": "aa_identity + ecology",
+      "regions": ["entire_coding_region", "E1_E2_E3_envelope"],
+      "thresholds": {
+        "aa_identity_min_coding_region": 0.90
+      },
+      "description": "Members of most species show at least 10% difference in amino acid identity over entire coding regions. Also considers antigenic characteristics, vector/host association, disease association, and ecological characteristics."
+    },
+    "reference_gene": "nsP4_RdRp",
+    "notes": "Threshold is fluid: VEEV subtypes with 85% aa identity still considered same species due to biological relatedness. Everglades/Tonate/Mucambo are separate species at 94-97% identity due to ecological differences."
+  },
+  "caliciviridae": {
+    "family": "Caliciviridae",
+    "source_file": "../ictv_txt/caliciviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "aa_identity",
+      "regions": ["VP1_capsid"],
+      "thresholds": {
+        "aa_divergence_min": 0.60
+      },
+      "description": "Members of different genera have >60% amino acid sequence difference in the complete VP1 (major capsid protein)."
+    },
+    "species_demarcation": {
+      "primary_method": "aa_identity + phylogeny",
+      "regions": ["VP1_capsid"],
+      "thresholds": {},
+      "description": "Species demarcation based on VP1 phylogeny and sequence divergence. No single fixed threshold stated."
+    },
+    "reference_gene": "VP1_capsid",
+    "notes": "Genus-level divergence matrix: Bavovirus-Lagovirus 81.5%, Bavovirus-Norovirus 85.2%, Lagovirus-Norovirus 81.4%."
+  },
+  "rhabdoviridae": {
+    "family": "Rhabdoviridae",
+    "source_file": "../ictv_txt/rhabdoviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "phylogeny + aa_identity",
+      "regions": ["L_protein", "N_protein"],
+      "thresholds": {},
+      "description": "Genus demarcation based on phylogeny of L protein and overall genome organisation."
+    },
+    "species_demarcation": {
+      "primary_method": "nt_identity + aa_identity + ecology",
+      "regions": ["L_protein", "N_protein", "whole_genome"],
+      "thresholds": {},
+      "description": "Species demarcation considering minimum nucleotide/amino acid sequence divergence in N and L genes, host range, vector specificity, and antigenic cross-reactivity."
+    },
+    "reference_gene": "L_protein",
+    "notes": "Very diverse family (>40 genera). Different genera may have genus-specific numerical thresholds."
+  },
+  "adenoviridae": {
+    "family": "Adenoviridae",
+    "source_file": "../ictv_txt/adenoviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "phylogeny + genome_organisation",
+      "regions": ["DNA_polymerase", "hexon"],
+      "thresholds": {},
+      "description": "Genus demarcation based on phylogenetic distance, genome organisation, and host range."
+    },
+    "species_demarcation": {
+      "primary_method": "phylogeny + nt_identity",
+      "regions": ["DNA_polymerase", "hexon"],
+      "thresholds": {},
+      "description": "Species demarcation based on phylogenetic distance in DNA polymerase gene and lack of cross-neutralisation."
+    },
+    "reference_gene": "DNA_polymerase",
+    "notes": "DNA virus, no RdRp. Uses DNA polymerase and hexon gene for classification."
+  },
+  "hantaviridae": {
+    "family": "Hantaviridae",
+    "source_file": "../ictv_txt/hantaviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["L_RdRp", "S_nucleoprotein"],
+      "thresholds": {},
+      "description": "Genus demarcation by phylogenetic analysis of L (RdRp) and S (nucleoprotein) segments."
+    },
+    "species_demarcation": {
+      "primary_method": "nt_identity + aa_identity + ecology",
+      "regions": ["S_segment", "M_segment"],
+      "thresholds": {},
+      "description": "Species demarcation based on sequence divergence in S and M segments, host association, and geographic distribution."
+    },
+    "reference_gene": "L_RdRp",
+    "notes": "Segmented negative-sense RNA genome (L, M, S). Host association is an important criterion."
+  },
+  "filoviridae": {
+    "family": "Filoviridae",
+    "source_file": "../ictv_txt/filoviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "phylogeny + genetic_distance",
+      "regions": ["L_RdRp", "GP_glycoprotein"],
+      "thresholds": {},
+      "description": "Genus demarcation by phylogenetic analysis of L protein."
+    },
+    "species_demarcation": {
+      "primary_method": "genetic_distance + ecology",
+      "regions": ["GP_glycoprotein", "NP_nucleoprotein"],
+      "thresholds": {},
+      "description": "Species demarcation based on genetic divergence, cross-neutralisation, host and geographic range."
+    },
+    "reference_gene": "L_RdRp",
+    "notes": null
+  },
+  "orthoherpesviridae": {
+    "family": "Orthoherpesviridae",
+    "source_file": "../ictv_txt/orthoherpesviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["DNA_polymerase", "terminase"],
+      "thresholds": {},
+      "description": "Genus demarcation by phylogenetic analysis of conserved herpesvirus genes."
+    },
+    "species_demarcation": {
+      "primary_method": "phylogeny + biology",
+      "regions": ["DNA_polymerase"],
+      "thresholds": {},
+      "description": "Species demarcation based on phylogenetic clustering, host range, pathogenesis, and tissue tropism."
+    },
+    "reference_gene": "DNA_polymerase",
+    "notes": "Large dsDNA virus family. Formerly 'Herpesviridae'. Classification relies heavily on biology alongside molecular data."
+  },
+  "arenaviridae": {
+    "family": "Arenaviridae",
+    "source_file": "../ictv_txt/arenaviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["L_RdRp"],
+      "thresholds": {},
+      "description": "Genus demarcation by phylogenetic analysis of the L segment RdRp."
+    },
+    "species_demarcation": {
+      "primary_method": "nt_identity + ecology",
+      "regions": ["S_segment", "NP_nucleoprotein"],
+      "thresholds": {},
+      "description": "Species demarcation based on S segment sequence divergence, host range, and geographic distribution."
+    },
+    "reference_gene": "L_RdRp",
+    "notes": "Segmented ambisense RNA genome (L, S)."
+  },
+  "polyomaviridae": {
+    "family": "Polyomaviridae",
+    "source_file": "../ictv_txt/polyomaviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["LTAg", "VP1"],
+      "thresholds": {},
+      "description": "Genus demarcation by phylogenetic analysis of Large T antigen."
+    },
+    "species_demarcation": {
+      "primary_method": "nt_identity",
+      "regions": ["whole_genome"],
+      "thresholds": {
+        "nt_identity_max_same_species": 0.81
+      },
+      "description": "Polyomaviruses with >81% whole-genome nucleotide identity are considered the same species."
+    },
+    "reference_gene": "LTAg",
+    "notes": "DNA virus. Uses whole-genome nt identity for species demarcation."
+  },
+  "papillomaviridae": {
+    "family": "Papillomaviridae",
+    "source_file": "../ictv_txt/papillomaviridae.txt",
+    "subfamily_demarcation": {
+      "primary_method": "aa_identity",
+      "regions": ["L1_ORF"],
+      "thresholds": {
+        "aa_identity_max_between_subfamilies": 0.45
+      },
+      "description": "L1 ORF of members of different subfamilies shares less than 45% sequence identity."
+    },
+    "genus_demarcation": {
+      "primary_method": "nt_identity",
+      "regions": ["L1_ORF"],
+      "thresholds": {
+        "nt_identity_max_between_genera": 0.60
+      },
+      "description": "Originally: genus contains papillomaviruses with <60% nt identity in L1 ORF to members of other genera."
+    },
+    "species_demarcation": {
+      "primary_method": "nt_identity",
+      "regions": ["L1_ORF"],
+      "thresholds": {
+        "nt_identity_max_same_species": 0.90
+      },
+      "description": "A papillomavirus type (species) shares <90% nt identity in L1 ORF with any other type."
+    },
+    "reference_gene": "L1_ORF",
+    "notes": "DNA virus. Well-defined numerical thresholds at all levels based on L1 ORF."
+  },
+  "amnoonviridae": {
+    "family": "Amnoonviridae",
+    "source_file": "../ictv_txt/amnoonviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": null,
+    "species_demarcation": null,
+    "reference_gene": "RdRp",
+    "notes": "Monotypic family (single genus, single species). RdRp domain homologous to influenza C PB1."
+  },
+  "anelloviridae": {
+    "family": "Anelloviridae",
+    "source_file": "../ictv_txt/anelloviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["ORF1"],
+      "thresholds": {},
+      "description": "Genus demarcation based on phylogenetic analysis of ORF1 amino acid sequences."
+    },
+    "species_demarcation": {
+      "primary_method": "nt_identity",
+      "regions": ["ORF1"],
+      "thresholds": {
+        "nt_identity_max_same_species": 0.69
+      },
+      "description": "Species demarcation based on <69% pairwise nucleotide identity in ORF1 gene sequences."
+    },
+    "reference_gene": "ORF1",
+    "notes": "Circular ssDNA virus. ORF1 encodes capsid protein, used as primary classification marker."
+  },
+  "arteriviridae": {
+    "family": "Arteriviridae",
+    "source_file": "../ictv_txt/arteriviridae.txt",
+    "subfamily_demarcation": {
+      "primary_method": "genetic_distance",
+      "regions": ["3CLpro", "NiRAN", "RdRp", "ZBD", "HEL1"],
+      "thresholds": {},
+      "description": "Subfamily demarcation by DEmARC analysis of evolutionary distances in 5 replicative protein domains (3CLpro, NiRAN, RdRp, ZBD, HEL1)."
+    },
+    "genus_demarcation": {
+      "primary_method": "genetic_distance",
+      "regions": ["3CLpro", "NiRAN", "RdRp", "ZBD", "HEL1"],
+      "thresholds": {},
+      "description": "Genus demarcation by DEmARC analysis of evolutionary distances in 5 replicative protein domains."
+    },
+    "species_demarcation": {
+      "primary_method": "genetic_distance",
+      "regions": ["3CLpro", "NiRAN", "RdRp", "ZBD", "HEL1"],
+      "thresholds": {},
+      "description": "Species demarcation by DEmARC (Demarcation of virus taxonomy by Evolutionary Relationships among Conserved domains) software on 5 replicase domains."
+    },
+    "reference_gene": "RdRp",
+    "notes": "Uses DEmARC software for distance-based hierarchical demarcation across all ranks. 6 subfamilies, 13 genera, 23 species."
+  },
+  "asfarviridae": {
+    "family": "Asfarviridae",
+    "source_file": "../ictv_txt/asfarviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": null,
+    "species_demarcation": null,
+    "reference_gene": null,
+    "notes": "Interim ICTV report. No explicit demarcation criteria provided. Currently contains African swine fever virus and related viruses. Large dsDNA virus."
+  },
+  "astroviridae": {
+    "family": "Astroviridae",
+    "source_file": "../ictv_txt/astroviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": null,
+    "species_demarcation": null,
+    "reference_gene": null,
+    "notes": "Interim ICTV report. No explicit demarcation criteria provided in available text."
+  },
+  "bornaviridae": {
+    "family": "Bornaviridae",
+    "source_file": "../ictv_txt/bornaviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "nt_identity + genome_organisation",
+      "regions": ["whole_genome"],
+      "thresholds": {
+        "nt_identity_cutoff": 0.45
+      },
+      "description": "Genus demarcation based on ~45% complete genome nucleotide identity cut-off (PASC analysis) and differences in genome organisation (gene order variations in G and M genes)."
+    },
+    "species_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["whole_genome"],
+      "thresholds": {},
+      "description": "Species demarcation based on phylogeny and genome organisation patterns."
+    },
+    "reference_gene": "L_RdRp",
+    "notes": "Gene order differs between genera: Orthobornavirus (3'-N-X/P-G-M-L-5') vs Carbovirus (3'-N-X/P-M-G-L-5')."
+  },
+  "circoviridae": {
+    "family": "Circoviridae",
+    "source_file": "../ictv_txt/circoviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "genome_organisation",
+      "regions": ["ori", "Rep", "Cp"],
+      "thresholds": {},
+      "description": "Genus demarcation based on origin of replication (ori) location: Circovirus has ori on Rep-encoding strand, Cyclovirus has ori on Cp-encoding strand."
+    },
+    "species_demarcation": {
+      "primary_method": "nt_identity",
+      "regions": ["whole_genome"],
+      "thresholds": {
+        "nt_identity_min_same_species": 0.80
+      },
+      "description": "Species demarcation based on 80% genome-wide nucleotide sequence identity threshold."
+    },
+    "reference_gene": "Rep",
+    "notes": "Small circular ssDNA virus. Genus distinguished by genome organisation (ori position), species by 80% genome nt identity."
+  },
+  "hepeviridae": {
+    "family": "Hepeviridae",
+    "source_file": "../ictv_txt/hepeviridae.txt",
+    "subfamily_demarcation": {
+      "primary_method": "aa_distance + host_range",
+      "regions": ["ORF1"],
+      "thresholds": {
+        "aa_p_distance_inter_subfamily_min": 0.60,
+        "aa_p_distance_intra_subfamily_max": 0.50
+      },
+      "description": "Subfamily demarcation based on host range, phylogeny, inter-subfamily amino acid p-distances >0.6 vs intra-subfamily <0.5, and genome organisation differences."
+    },
+    "genus_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["ORF1_methyltransferase"],
+      "thresholds": {},
+      "description": "Genus demarcation by phylogenetic analysis of ORF1 polyprotein residues 1-450 (methyltransferase domain)."
+    },
+    "species_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["ORF1_methyltransferase"],
+      "thresholds": {},
+      "description": "Species demarcation by phylogenetic analysis of ORF1 methyltransferase domain alignment."
+    },
+    "reference_gene": "ORF1",
+    "notes": "Subfamily threshold: inter >0.6 aa p-distance, intra <0.5. ORF1 methyltransferase domain (residues 1-450) used for genus/species."
+  },
+  "nairoviridae": {
+    "family": "Nairoviridae",
+    "source_file": "../ictv_txt/nairoviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["L_RdRp"],
+      "thresholds": {},
+      "description": "Genus demarcation by phylogenetic analysis of the L segment RdRp."
+    },
+    "species_demarcation": {
+      "primary_method": "phylogeny + ecology",
+      "regions": ["L_RdRp", "S_nucleoprotein"],
+      "thresholds": {},
+      "description": "Species demarcation based on phylogenetic relationships, vector association, and geographic distribution."
+    },
+    "reference_gene": "L_RdRp",
+    "notes": "Segmented negative-sense RNA genome (L, M, S). Tick-borne bunyaviruses."
+  },
+  "nodaviridae": {
+    "family": "Nodaviridae",
+    "source_file": "../ictv_txt/nodaviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "biology + phylogeny",
+      "regions": ["RNA1", "RNA2"],
+      "thresholds": {},
+      "description": "Genus demarcation by host range, vectors, transmission mode, virion sedimentation coefficient, CP electrophoretic mobilities, antigenic properties, and RNA1/RNA2 phylogeny."
+    },
+    "species_demarcation": {
+      "primary_method": "nt_identity + aa_identity",
+      "regions": ["RNA2"],
+      "thresholds": {
+        "nt_identity_max_same_species": 0.80,
+        "aa_identity_max_same_species": 0.87
+      },
+      "description": "Species demarcation based on <80% nucleotide identity and <87% amino acid identity in RNA2 segment."
+    },
+    "reference_gene": "RNA1_RdRp",
+    "notes": "Bipartite ssRNA(+) genome. RNA2 identity thresholds for species: <80% nt, <87% aa."
+  },
+  "parvoviridae": {
+    "family": "Parvoviridae",
+    "source_file": "../ictv_txt/parvoviridae.txt",
+    "subfamily_demarcation": {
+      "primary_method": "phylogeny + host_range",
+      "regions": ["NS1_helicase", "VP_capsid"],
+      "thresholds": {},
+      "description": "Subfamily demarcation based on host range (vertebrates vs invertebrates) and deep phylogenetic divergence in NS1 helicase domain."
+    },
+    "genus_demarcation": {
+      "primary_method": "phylogeny + genome_organisation",
+      "regions": ["NS1_helicase"],
+      "thresholds": {},
+      "description": "Genus demarcation by phylogenetic analysis of NS1 helicase domain and genome organisation differences."
+    },
+    "species_demarcation": {
+      "primary_method": "phylogeny + nt_identity",
+      "regions": ["NS1", "VP"],
+      "thresholds": {},
+      "description": "Species demarcation based on NS1 and VP sequence divergence, host range, and tissue tropism. Complex criteria varying by genus."
+    },
+    "reference_gene": "NS1_helicase",
+    "notes": "Small ssDNA virus. Complex taxonomy with subfamily/genus-specific criteria."
+  },
+  "peribunyaviridae": {
+    "family": "Peribunyaviridae",
+    "source_file": "../ictv_txt/peribunyaviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "phylogeny + genome_organisation",
+      "regions": ["L_protein"],
+      "thresholds": {},
+      "description": "Genus demarcation based on L protein monophyletic clade, NSs/NSm gene presence, and Gc protein N-terminal truncation patterns."
+    },
+    "species_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["L_protein"],
+      "thresholds": {},
+      "description": "Species demarcation by phylogenetic analysis of L protein (RdRp) sequences."
+    },
+    "reference_gene": "L_protein",
+    "notes": "Segmented negative-sense RNA genome (L, M, S). Genus features include NSs/NSm gene presence."
+  },
+  "phenuiviridae": {
+    "family": "Phenuiviridae",
+    "source_file": "../ictv_txt/phenuiviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["L_RdRp"],
+      "thresholds": {},
+      "description": "Genus demarcation by phylogenetic analysis of L segment RdRp. 23 genera, 159 species."
+    },
+    "species_demarcation": {
+      "primary_method": "phylogeny + ecology",
+      "regions": ["L_RdRp", "S_segment"],
+      "thresholds": {},
+      "description": "Species demarcation based on phylogeny, vector/host association, ecology (host range, pathobiology, transmission patterns)."
+    },
+    "reference_gene": "L_RdRp",
+    "notes": "Very diverse family (23 genera). Segmented genome. Species criteria consider ecology in addition to phylogeny."
+  },
+  "picobirnaviridae": {
+    "family": "Picobirnaviridae",
+    "source_file": "../ictv_txt/picobirnaviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": null,
+    "species_demarcation": {
+      "primary_method": "aa_identity + host",
+      "regions": ["RdRp", "capsid"],
+      "thresholds": {},
+      "description": "Species demarcation based on host specificity and strong sequence divergence of capsid proteins. Three genogroups with high sequence divergence (29-81% within, 18-25% between)."
+    },
+    "reference_gene": "RdRp",
+    "notes": "Bipartite dsRNA genome. Genogroup divergence: 29-81% identity within genogroups, 18-25% between. Classification still evolving."
+  },
+  "pneumoviridae": {
+    "family": "Pneumoviridae",
+    "source_file": "../ictv_txt/pneumoviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "genome_organisation",
+      "regions": ["whole_genome"],
+      "thresholds": {},
+      "description": "Genus demarcation by gene number (10 for Orthopneumovirus vs 8 for Metapneumovirus), NS1/NS2 gene presence, gene order (SH-G-F-M2 vs F-M2-SH-G), and genome length (15,191-15,277 nt vs 13,280-13,406 nt)."
+    },
+    "species_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": ["L_protein"],
+      "thresholds": {},
+      "description": "Species demarcation by phylogenetic analysis of L protein (RdRp) and overall sequence relatedness."
+    },
+    "reference_gene": "L_protein",
+    "notes": "Genera distinguished by gene count, gene order, genome length, and NS gene presence/absence."
+  },
+  "poxviridae": {
+    "family": "Poxviridae",
+    "source_file": "../ictv_txt/poxviridae.txt",
+    "subfamily_demarcation": {
+      "primary_method": "host_range + phylogeny",
+      "regions": ["25_conserved_genes"],
+      "thresholds": {},
+      "description": "Subfamily demarcation by host specificity (Chordopoxvirinae: vertebrates; Entomopoxvirinae: insects). Only 49 conserved gene products between subfamilies. 25 conserved genes used for ML phylogeny."
+    },
+    "genus_demarcation": {
+      "primary_method": "phylogeny + host_range",
+      "regions": ["25_conserved_genes"],
+      "thresholds": {},
+      "description": "Genus demarcation by phylogeny of 25 conserved genes, host range, and gene content/synteny."
+    },
+    "species_demarcation": {
+      "primary_method": "phylogeny + biology",
+      "regions": ["25_conserved_genes"],
+      "thresholds": {},
+      "description": "Species demarcation based on phylogeny of conserved genes, host range specificity, and pathogenesis."
+    },
+    "reference_gene": "25_conserved_genes",
+    "notes": "Large dsDNA virus. Uses 25 conserved genes (A18, A2, A22, A23, A24, A28, A3, A32, A7, D1, D11, D12, D5, D6, E1, E10, E9, G5, H2, H4, H6, I8, J3, J6, L1) for family-level ML reconstruction."
+  },
+  "sedoreoviridae": {
+    "family": "Sedoreoviridae",
+    "source_file": "../ictv_txt/sedoreoviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "aa_identity + biology",
+      "regions": ["RdRp"],
+      "thresholds": {
+        "aa_identity_inter_genus_max": 0.26,
+        "aa_identity_intra_genus_min": 0.30
+      },
+      "description": "Genus demarcation by genome segment number (10, 11, or 12), host/vector range, capsid structure, and RdRp sequence divergence (<26% aa identity between genera, >30% within)."
+    },
+    "species_demarcation": {
+      "primary_method": "nt_identity + serology + reassortment",
+      "regions": ["genome_segments"],
+      "thresholds": {},
+      "description": "Species demarcation by segment reassortment capacity, nucleotide/amino acid sequence similarity, serological comparisons, electropherotype (AGE), and conserved terminal regions."
+    },
+    "reference_gene": "RdRp",
+    "notes": "Segmented dsRNA genome (10-12 segments). Genus threshold: <26% RdRp aa identity between genera, >30% within genus."
+  },
+  "spinareoviridae": {
+    "family": "Spinareoviridae",
+    "source_file": "../ictv_txt/spinareoviridae.txt",
+    "subfamily_demarcation": null,
+    "genus_demarcation": {
+      "primary_method": "aa_identity + biology",
+      "regions": ["RdRp"],
+      "thresholds": {
+        "aa_identity_inter_genus_max": 0.26,
+        "aa_identity_intra_genus_min": 0.30
+      },
+      "description": "Genus demarcation by genome segment number (9, 10, 11, or 12), host/vector range, capsid structure, and RdRp sequence divergence (<26% aa identity between genera, >30% within)."
+    },
+    "species_demarcation": {
+      "primary_method": "nt_identity + serology + reassortment",
+      "regions": ["genome_segments"],
+      "thresholds": {},
+      "description": "Species demarcation by segment reassortment capacity, nucleotide/amino acid sequence similarity, serological comparisons, electropherotype (AGE), and conserved terminal regions."
+    },
+    "reference_gene": "RdRp",
+    "notes": "Segmented dsRNA genome (9-12 segments). Genus threshold: <26% RdRp aa identity between genera, >30% within genus. Distinguished from Sedoreoviridae by turreted capsid."
+  }
+}

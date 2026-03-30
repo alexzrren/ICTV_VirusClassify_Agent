@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ICTV Virus Classifier</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body { background: #f4f6fa; }
+    .brand { color: #1a6b3a; font-weight: 700; }
+    #reasoning-box {
+      background: #1e1e2e; color: #cdd6f4; font-family: monospace;
+      font-size: 0.82rem; border-radius: 8px; padding: 1rem;
+      max-height: 350px; overflow-y: auto;
+    }
+    .tax-badge { font-size: 0.78rem; margin: 2px; }
+    .confidence-High   { background: #198754; color: white; }
+    .confidence-Medium { background: #ffc107; color: #212529; }
+    .confidence-Low    { background: #dc3545; color: white; }
+    .confidence-Unknown{ background: #6c757d; color: white; }
+    .step-line { margin: 0; padding: 1px 0; white-space: pre-wrap; word-break: break-all; }
+    .step-tool { color: #89b4fa; }
+    .step-result { color: #a6e3a1; }
+    .step-error { color: #f38ba8; }
+    #result-section { display: none; }
+    .evidence-card { font-size: 0.85rem; }
+    .novel-badge { background: #dc3545; color: white; }
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-light bg-white border-bottom shadow-sm mb-4">
+  <div class="container">
+    <span class="navbar-brand fs-5 brand">🦠 ICTV Virus Classifier</span>
+    <span class="text-muted small">Sequence classification by ICTV official demarcation criteria</span>
+  </div>
+</nav>
+
+<div class="container pb-5">
+  <div class="row g-4">
+
+    <!-- Input Panel -->
+    <div class="col-lg-5">
+      <div class="card shadow-sm">
+        <div class="card-header bg-white fw-semibold">Submit Sequence</div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label small text-muted">FASTA sequence (nucleotide or protein)</label>
+            <textarea id="fasta-input" class="form-control font-monospace"
+              rows="10" placeholder=">MyVirus_query&#10;ATGCGATCGATCGA..."></textarea>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-5">
+              <label class="form-label small text-muted">Sequence type</label>
+              <select id="seq-type" class="form-select form-select-sm">
+                <option value="auto">Auto-detect</option>
+                <option value="nt">Nucleotide</option>
+                <option value="aa">Amino acid</option>
+              </select>
+            </div>
+            <div class="col-4">
+              <label class="form-label small text-muted">Family (optional)</label>
+              <input id="family-hint" type="text" class="form-control form-control-sm"
+                placeholder="e.g. Coronaviridae" />
+            </div>
+            <div class="col-3">
+              <label class="form-label small text-muted">Max steps</label>
+              <input id="max-steps" type="number" class="form-control form-control-sm" value="20" min="5" max="40" />
+            </div>
+          </div>
+          <button id="submit-btn" class="btn btn-success w-100" onclick="submitClassify()">
+            Classify Sequence
+          </button>
+          <div id="submit-spinner" class="text-center mt-3" style="display:none">
+            <div class="spinner-border text-success" role="status"></div>
+            <p class="small text-muted mt-1">Agent is reasoning…</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Family Lookup -->
+      <div class="card shadow-sm mt-3">
+        <div class="card-header bg-white fw-semibold">Family Criteria Lookup</div>
+        <div class="card-body">
+          <div class="input-group input-group-sm">
+            <input id="family-input" type="text" class="form-control"
+              placeholder="e.g. Coronaviridae" />
+            <button class="btn btn-outline-success" onclick="lookupFamily()">Look up</button>
+          </div>
+          <div id="family-result" class="mt-2 small" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Output Panel -->
+    <div class="col-lg-7">
+
+      <!-- Reasoning stream -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">Agent Reasoning</span>
+          <span id="status-badge" class="badge bg-secondary">Idle</span>
+        </div>
+        <div class="card-body p-2">
+          <div id="reasoning-box"><span class="text-muted small">Steps will appear here…</span></div>
+        </div>
+      </div>
+
+      <!-- Classification result -->
+      <div id="result-section" class="card shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">Classification Result</span>
+          <div>
+            <span id="confidence-badge" class="badge me-2">—</span>
+            <span id="novel-badge" class="badge novel-badge" style="display:none">Potential Novel Species</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <h6 class="text-muted small mb-2">Taxonomy</h6>
+          <div id="taxonomy-badges" class="mb-3"></div>
+
+          <h6 class="text-muted small mb-2">Evidence</h6>
+          <div id="evidence-list" class="mb-3"></div>
+
+          <h6 class="text-muted small mb-2">Reasoning Summary</h6>
+          <p id="reasoning-summary" class="small text-muted"></p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+
+async function submitClassify() {
+  const fasta = document.getElementById('fasta-input').value.trim();
+  if (!fasta) { alert('Please enter a FASTA sequence.'); return; }
+
+  resetUI();
+  setStatus('Running', 'warning');
+  document.getElementById('submit-spinner').style.display = 'block';
+  document.getElementById('submit-btn').disabled = true;
+
+  let jobId;
+  try {
+    const res = await fetch(`${API}/classify`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        fasta,
+        sequence_type: document.getElementById('seq-type').value,
+        max_steps: parseInt(document.getElementById('max-steps').value) || 20,
+        family_hint: document.getElementById('family-hint').value.trim(),
+      }),
+    });
+    const data = await res.json();
+    jobId = data.job_id;
+  } catch (e) {
+    appendStep(`[ERROR] Failed to submit: ${e}`, 'error');
+    done();
+    return;
+  }
+
+  // Connect to SSE stream
+  const es = new EventSource(`${API}/stream/${jobId}`);
+  es.onmessage = (evt) => {
+    const d = JSON.parse(evt.data);
+    if (d.step) {
+      const cls = d.step.includes('[Tool]') ? 'tool'
+                : d.step.includes('[ERROR]') ? 'error' : 'result';
+      appendStep(d.step, cls);
+    }
+    if (d.status === 'done') {
+      es.close();
+      if (d.result) showResult(d.result);
+      setStatus('Done', 'success');
+      done();
+    } else if (d.status === 'error') {
+      es.close();
+      appendStep(`[ERROR] ${d.error || 'Unknown error'}`, 'error');
+      setStatus('Error', 'danger');
+      done();
+    }
+  };
+  es.onerror = () => {
+    es.close();
+    // Fallback: poll
+    pollResult(jobId);
+  };
+}
+
+async function pollResult(jobId) {
+  for (let i = 0; i < 120; i++) {
+    await sleep(2000);
+    try {
+      const res = await fetch(`${API}/result/${jobId}`);
+      const data = await res.json();
+      if (data.status === 'done') {
+        if (data.result) showResult(data.result);
+        setStatus('Done', 'success');
+        done();
+        return;
+      } else if (data.status === 'error') {
+        appendStep(`[ERROR] ${data.error}`, 'error');
+        setStatus('Error', 'danger');
+        done();
+        return;
+      }
+    } catch(e) {}
+  }
+  setStatus('Timeout', 'danger');
+  done();
+}
+
+function showResult(result) {
+  document.getElementById('result-section').style.display = 'block';
+
+  // Confidence badge
+  const conf = result.confidence || 'Unknown';
+  const cb = document.getElementById('confidence-badge');
+  cb.textContent = conf;
+  cb.className = `badge confidence-${conf}`;
+
+  // Novel species
+  if (result.novel_species) {
+    document.getElementById('novel-badge').style.display = 'inline-block';
+  }
+
+  // Taxonomy badges
+  const tax = result.taxonomy || {};
+  const levels = [
+    ['Realm', tax.realm], ['Kingdom', tax.kingdom], ['Phylum', tax.phylum],
+    ['Class', tax.class], ['Order', tax.order], ['Family', tax.family],
+    ['Subfamily', tax.subfamily], ['Genus', tax.genus], ['Species', tax.species],
+  ];
+  const container = document.getElementById('taxonomy-badges');
+  container.innerHTML = levels.filter(([,v]) => v)
+    .map(([label, val]) =>
+      `<span class="badge bg-secondary tax-badge me-1 mb-1">${label}: <strong>${val}</strong></span>`
+    ).join('');
+
+  // Evidence
+  const evList = document.getElementById('evidence-list');
+  if (result.evidence && result.evidence.length > 0) {
+    evList.innerHTML = result.evidence.map(e => `
+      <div class="card evidence-card mb-1">
+        <div class="card-body py-1 px-2">
+          <strong>${e.method}</strong> | Region: ${e.region}<br/>
+          Value: <code>${e.value}</code> / Threshold: <code>${e.threshold}</code><br/>
+          <span class="text-muted">${e.conclusion}</span>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    evList.innerHTML = '<span class="text-muted small">No structured evidence recorded.</span>';
+  }
+
+  // Reasoning — only show if reasoning-box is empty (SSE already showed steps)
+  const rbox = document.getElementById('reasoning-box');
+  const hasSteps = rbox.querySelectorAll('.step-line').length > 0;
+  if (!hasSteps && result.reasoning) {
+    document.getElementById('reasoning-summary').textContent = result.reasoning;
+  } else {
+    document.getElementById('reasoning-summary').textContent = '';
+  }
+}
+
+async function lookupFamily() {
+  const name = document.getElementById('family-input').value.trim();
+  if (!name) return;
+  const el = document.getElementById('family-result');
+  el.style.display = 'block';
+  el.innerHTML = '<span class="text-muted">Loading…</span>';
+  try {
+    const res = await fetch(`${API}/family/${encodeURIComponent(name)}`);
+    if (!res.ok) {
+      const d = await res.json();
+      el.innerHTML = `<span class="text-danger">${d.detail || 'Not found'}</span>`;
+      return;
+    }
+    const data = await res.json();
+    el.innerHTML = `<pre class="small mb-0" style="max-height:200px;overflow:auto">${JSON.stringify(data, null, 2)}</pre>`;
+  } catch(e) {
+    el.innerHTML = `<span class="text-danger">${e}</span>`;
+  }
+}
+
+function appendStep(text, cls = '') {
+  const box = document.getElementById('reasoning-box');
+  if (box.firstChild && box.firstChild.classList && box.firstChild.classList.contains('text-muted')) {
+    box.innerHTML = '';
+  }
+  const p = document.createElement('p');
+  p.className = `step-line step-${cls}`;
+  p.textContent = text;
+  box.appendChild(p);
+  box.scrollTop = box.scrollHeight;
+}
+
+function setStatus(label, type) {
+  const el = document.getElementById('status-badge');
+  el.textContent = label;
+  el.className = `badge bg-${type}`;
+}
+
+function resetUI() {
+  document.getElementById('reasoning-box').innerHTML = '<span class="text-muted small">Steps will appear here…</span>';
+  document.getElementById('result-section').style.display = 'none';
+  document.getElementById('novel-badge').style.display = 'none';
+  document.getElementById('family-result').style.display = 'none';
+}
+
+function done() {
+  document.getElementById('submit-spinner').style.display = 'none';
+  document.getElementById('submit-btn').disabled = false;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>
