@@ -35,7 +35,7 @@ Open **http://localhost:18231**.
 | 32 virus families, ReAct Agent (9 tools) | ✅ |
 | 21 families with numerical thresholds | ✅ |
 | 98 genera with genus-level criteria | ✅ |
-| Coronaviridae subgenus (DEmARC PUD, 5 domains) | ✅ |
+| Coronaviridae subgenus (DEmARC PUD, 5 domains, validated SARS-CoV-1/2) | ✅ |
 | MSL40 taxonomy DB (16,213 species) | ✅ |
 | TF-IDF search over 32 ICTV report chapters | ✅ |
 | SSE real-time reasoning stream | ✅ |

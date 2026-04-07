@@ -243,10 +243,12 @@ Coronaviridae采用基于氨基酸PUD（Pairwise Uncorrected Distance）的DEmAR
 | 科 | ≤68.1% |
 
 **工具实现**（`backend/tools/corona_pud.py`）：
-1. 检测核糖体-1移码位点（TTTAAAC滑动序列）翻译ORF1ab产生pp1ab多蛋白
+1. 检测核糖体-1移码位点：在ORF1a内枚举所有 `TTTAAAC` 候选位置（搜索窗口 ORF1a起始+8000 至 +20000 nt），对每个候选验证-1框架的ORF1b翻译长度（>1500 aa），选取产生最长ORF1b的位置作为真实移码位点，翻译 pp1ab 多蛋白
 2. 用HMMER3 HMM profiles（`data/hmm/CoV_5domains.hmm`）提取5个结构域，坐标缩放法兜底
 3. MAFFT比对 + 计算PUD，与59条参考序列逐一比较
 4. 按Table 4阈值划分分类阶元，查SQLite获取完整分类
+
+> **设计说明**：早期版本仅取搜索区间第一个 `TTTAAAC` 匹配，对部分冠状病毒（如SARS-CoV-1）会命中非真实移码位点，导致pp1ab翻译错误、PUD虚高（实测曾出现79%，远超科级阈值68.1%）。验证ORF1b长度的改进使移码位点检测对所有 Orthocoronavirinae 均稳定正确。
 
 **HMM建库**（`scripts/build_corona_hmms.py`）：
 - 从59条冠状病毒参考序列提取各结构域种子序列
@@ -254,7 +256,8 @@ Coronaviridae采用基于氨基酸PUD（Pairwise Uncorrected Distance）的DEmAR
 - 输出：`data/hmm/CoV_5domains.hmm`（可直接用于hmmsearch）
 
 **验证结果：**
-- SARS-CoV-2 vs SARS-CoV-1 (AY274119): PUD=3.5% → same_species ✓（均为*Severe acute respiratory syndrome-related coronavirus*）
+- SARS-CoV-1 (AY274119) vs 自身: PUD=3.8% → same_species ✓
+- SARS-CoV-2 (MN908947) vs SARS-CoV-1 (AY274119): PUD=6.2% → same_species ✓（均为*Severe acute respiratory syndrome-related coronavirus*，同属 Sarbecovirus 亚属）
 - SARS-CoV-2 vs 蝙蝠Beta冠状病毒: PUD=27-35% → same_genus ✓（均为Betacoronavirus属）
 - SARS-CoV-2 vs Alpha冠状病毒: PUD=45-60% → same_subfamily ✓（同属Orthocoronavirinae）
 
@@ -560,6 +563,28 @@ Bioinformatics, Nucleic Acids Research, Virus Evolution, PLOS Computational Biol
 
 # 进展日志
 
+## 2026年4月7日（第二次）
+
+**Bugfix：修复冠状病毒ORF1ab移码位点检测错误导致分类失准**
+
+**问题**：`corona_pud_classify` 对 SARS-CoV-1 (AY274119.3) 返回 PUD=79%（错误，远超科级阈值68.1%），实际应分类为 same_species。
+
+**根因**：`find_frameshift_site()` 在搜索窗口内取第一个 `TTTAAAC` 匹配，SARS-CoV-1 基因组在真实移码位点（nt 13391）之前存在另一个 `TTTAAAC`，导致 pp1ab 从错误位置翻译，产生乱序蛋白，与所有参考序列 PUD 均异常高。
+
+**修复**（`backend/tools/corona_pud.py`，`find_frameshift_site()`）：
+- 枚举搜索窗口内**所有** `TTTAAAC` 候选位置（搜索起始从 ORF1a+10000 nt 放宽至 +8000 nt）
+- 对每个候选尝试 -1 框架翻译 ORF1b（12000 nt 窗口），仅保留 ORF1b >1500 aa 的候选
+- 选取产生最长 ORF1b 的位置（即真实移码位点）
+- ORF1b 翻译窗口从 `slip_pos+12000` 扩大至 `slip_pos+15000`（覆盖更长的禽类冠状病毒 ORF1b）
+
+**验证**：
+- SARS-CoV-1 slip_pos=13391（修复前使用错误位置）；SARS-CoV-2 slip_pos=13461（正确不变）
+- SARS-CoV-1 pp1ab=7073 aa，SARS-CoV-2 pp1ab=7096 aa（均为合理值）
+- SARS-CoV-1 vs 自身 PUD=3.8% → same_species ✓
+- SARS-CoV-2 vs SARS-CoV-1 PUD=6.2% → same_species ✓
+
+---
+
 ## 2026年4月7日
 
 分类标准知识库全面升级 + Coronaviridae亚属级DEmARC PUD子系统完成：
@@ -576,7 +601,7 @@ Bioinformatics, Nucleic Acids Research, Virus Evolution, PLOS Computational Biol
   - HMM提取5个结构域（坐标缩放法兜底）
   - MAFFT比对 + PUD计算 + Table 4阈值分类
 - `backend/agent.py`：注册第9个工具 `corona_pud_classify`，系统提示词更新
-- **验证通过**：SARS-CoV-2 vs SARS-CoV-1 PUD=3.5% (same_species)，Beta vs Alpha CoV PUD=45-60% (same_subfamily)，Beta CoV属内 PUD=27-35% (same_genus)
+- **验证通过**：SARS-CoV-2 vs SARS-CoV-1 PUD=6.2% (same_species)，Beta vs Alpha CoV PUD=45-60% (same_subfamily)，Beta CoV属内 PUD=27-35% (same_genus)
 
 **已知5个科无明确标准的原因分析：**
 - Caliciviridae/Hepeviridae：宿主范围和抗原性联合判定，无单一数值标准

@@ -84,20 +84,52 @@ def find_frameshift_site(genome: str, orf1a_start: int) -> int:
     Find the -1 ribosomal frameshift site by locating the conserved
     slippery sequence TTTAAAC within ORF1a.
     Returns the 0-based nt position of the start of the slippery sequence.
+
+    Validates each candidate by translating the resulting ORF1b and checking
+    that it encodes a protein of expected length (>1500 aa). This avoids
+    false-positive matches for divergent coronaviruses (e.g. SARS-CoV-1)
+    where the real frameshift site is at a different position than in SARS-CoV-2.
     """
-    search_start = orf1a_start + 10000  # slippage is in the second half of ORF1a
-    search_end   = orf1a_start + 18000
-    search_end   = min(search_end, len(genome))
+    # Wide search window: slippage is in the second half of ORF1a.
+    # Start at +8000 (not +10000) to catch divergent genera.
+    search_start = orf1a_start + 8000
+    search_end   = min(orf1a_start + 20000, len(genome))
     region = genome[search_start: search_end]
 
-    pos = region.find(SLIPPERY_SEQ)
-    if pos >= 0:
-        return search_start + pos  # 0-based absolute
-    # fallback: try searching more broadly
-    region2 = genome[5000: min(20000, len(genome))]
-    pos = region2.find(SLIPPERY_SEQ)
-    if pos >= 0:
-        return 5000 + pos
+    # Collect ALL candidate positions for TTTAAAC in the window
+    candidates: list[int] = []
+    offset = 0
+    while True:
+        p = region.find(SLIPPERY_SEQ, offset)
+        if p < 0:
+            break
+        candidates.append(search_start + p)
+        offset = p + 1
+
+    # Validate each candidate: the real frameshift site produces an ORF1b of
+    # ~2700 aa (Orthocoronavirinae). Accept any that yields >1500 aa; pick
+    # the one with the longest resulting ORF1b.
+    best_pos = -1
+    best_len = 0
+    for slip_pos in candidates:
+        orf1b_start = slip_pos + len(SLIPPERY_SEQ) - 1  # -1 slip
+        orf1b_end   = min(orf1b_start + 12000, len(genome))
+        try:
+            pp1b_test = str(Seq(genome[orf1b_start: orf1b_end]).translate(to_stop=True))
+        except Exception:
+            continue
+        if len(pp1b_test) > best_len and len(pp1b_test) > 1500:
+            best_len = len(pp1b_test)
+            best_pos = slip_pos
+
+    if best_pos >= 0:
+        return best_pos
+
+    # Broader fallback (no ORF1b validation): search 5000–22000 nt
+    broad = genome[5000: min(22000, len(genome))]
+    p = broad.find(SLIPPERY_SEQ)
+    if p >= 0:
+        return 5000 + p
     return -1
 
 
@@ -125,8 +157,9 @@ def translate_orf1ab(genome_seq: str) -> Optional[str]:
     pp1a = str(orf1a_nt.translate(to_stop=True))
 
     # ORF1b: from frameshift site - 1 (the -1 slip), stop at stop codon
+    # Use 15000 nt window (enough for any known coronavirus ORF1b ~8100 nt)
     orf1b_start0 = slip_pos + len(SLIPPERY_SEQ) - 1  # -1 slip: back one nt
-    orf1b_end0   = min(slip_pos + 12000, len(genome))
+    orf1b_end0   = min(slip_pos + 15000, len(genome))
     orf1b_nt = Seq(genome[orf1b_start0: orf1b_end0])
     pp1b = str(orf1b_nt.translate(to_stop=True))
 
