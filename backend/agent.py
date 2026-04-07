@@ -562,7 +562,11 @@ async def classify_sequence(
         f"Query ID: {query_id}\n"
         f"Sequence length: {len(raw_seq)} bp/aa\n\n"
         f"Sequence (first 500 chars): {raw_seq[:500]}{'...' if len(raw_seq) > 500 else ''}\n\n"
-        f"Full sequence available in tools as needed. "
+        f"**IMPORTANT: The full sequence is automatically injected by the system into every "
+        f"tool call — you do NOT need to copy or paste the sequence into tool arguments. "
+        f"For blast_search and blast_and_compare the `sequence` field is auto-filled; "
+        f"for corona_pud_classify the `genome_nt` field is auto-filled. "
+        f"Just call the tools directly without worrying about providing the full sequence.**\n\n"
         f"Use the tools to identify the virus family and classify it according to ICTV criteria."
         f"{family_note}{avail_note}"
     )
