@@ -628,10 +628,12 @@ async def classify_sequence(
                 if step_callback:
                     await step_callback(f"[Tool] Calling {tu.name}...")
 
-                # Always inject full sequence for BLAST tools
+                # Always inject full sequence so the model cannot truncate it
                 inputs = dict(tu.input)
                 if tu.name in ("blast_search", "blast_and_compare"):
                     inputs["sequence"] = _full_seq
+                elif tu.name == "corona_pud_classify":
+                    inputs["genome_nt"] = _full_seq
 
                 result_str = await asyncio.to_thread(_execute_tool, tu.name, inputs)
                 tool_result_store.append((tu.name, result_str))
