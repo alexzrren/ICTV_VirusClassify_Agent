@@ -1,0 +1,1316 @@
+{
+  "adenoviridae_aviadenovirus": {
+    "family": "Adenoviridae",
+    "genus": "Aviadenovirus",
+    "species_demarcation": {
+      "primary_method": "phylogenetic_distance + biology",
+      "regions": [
+        "DNA_polymerase"
+      ],
+      "thresholds": {
+        "aa_distance_pol_min": 0.1,
+        "aa_distance_pol_max": 0.15
+      },
+      "description": "Species designation requires at least two criteria: phylogenetic distance >10-15% (ML analysis of pol aa sequence), genome organization, host range, nucleotide composition, or cross-neutralization."
+    }
+  },
+  "adenoviridae_barthadenovirus": {
+    "family": "Adenoviridae",
+    "genus": "Barthadenovirus",
+    "species_demarcation": {
+      "primary_method": "phylogenetic_distance + biology",
+      "regions": [
+        "DNA_polymerase"
+      ],
+      "thresholds": {
+        "aa_distance_pol_min": 0.1,
+        "aa_distance_pol_max": 0.15
+      },
+      "description": "Species designation requires at least two criteria: phylogenetic distance >10-15% (ML analysis of pol aa sequence), genome organization, host range, nucleotide composition, or cross-neutralization."
+    }
+  },
+  "adenoviridae_mastadenovirus": {
+    "family": "Adenoviridae",
+    "genus": "Mastadenovirus",
+    "species_demarcation": {
+      "primary_method": "phylogenetic_distance + biology",
+      "regions": [
+        "DNA_polymerase"
+      ],
+      "thresholds": {
+        "aa_distance_pol_min": 0.1,
+        "aa_distance_pol_max": 0.15
+      },
+      "description": "Species designation requires at least two criteria: phylogenetic distance >10-15% (ML analysis of pol aa sequence), genome organization, host range, nucleotide composition, or cross-neutralization."
+    }
+  },
+  "adenoviridae_siadenovirus": {
+    "family": "Adenoviridae",
+    "genus": "Siadenovirus",
+    "species_demarcation": {
+      "primary_method": "phylogenetic_distance + biology",
+      "regions": [
+        "DNA_polymerase"
+      ],
+      "thresholds": {
+        "aa_distance_pol_min": 0.1,
+        "aa_distance_pol_max": 0.15
+      },
+      "description": "Species designation requires at least two criteria: phylogenetic distance >10-15% (ML analysis of pol aa sequence), genome organization, host range, nucleotide composition, or cross-neutralization."
+    }
+  },
+  "adenoviridae_testadenovirus": {
+    "family": "Adenoviridae",
+    "genus": "Testadenovirus",
+    "species_demarcation": {
+      "primary_method": "phylogenetic_distance + biology",
+      "regions": [
+        "DNA_polymerase"
+      ],
+      "thresholds": {
+        "aa_distance_pol_min": 0.1,
+        "aa_distance_pol_max": 0.15
+      },
+      "description": "Species designation requires at least two criteria: phylogenetic distance >10-15% (ML analysis of pol aa sequence), genome organization, host range, nucleotide composition, or cross-neutralization."
+    }
+  },
+  "adenoviridae_ichtadenovirus": {
+    "family": "Adenoviridae",
+    "genus": "Ichtadenovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus; demarcation criteria not defined."
+    }
+  },
+  "arenaviridae_antennavirus": {
+    "family": "Arenaviridae",
+    "genus": "Antennavirus",
+    "species_demarcation": {
+      "primary_method": "nt_identity + host",
+      "regions": [
+        "S_segment",
+        "L_segment"
+      ],
+      "thresholds": {
+        "S_segment_nt_identity_max_same_species": 0.8,
+        "L_segment_nt_identity_max_same_species": 0.76
+      },
+      "description": "Species demarcation: <80% nt identity in S RNA segment AND <76% identity in L RNA segment; association with distinct main host."
+    }
+  },
+  "arenaviridae_hartmanivirus": {
+    "family": "Arenaviridae",
+    "genus": "Hartmanivirus",
+    "species_demarcation": {
+      "primary_method": "nt_identity + host",
+      "regions": [
+        "S_segment",
+        "L_segment"
+      ],
+      "thresholds": {
+        "S_segment_nt_identity_max_same_species": 0.8,
+        "L_segment_nt_identity_max_same_species": 0.76
+      },
+      "description": "Species demarcation: <80% nt identity in S RNA segment AND <76% identity in L RNA segment; association with distinct main host."
+    }
+  },
+  "arenaviridae_mammarenavirus": {
+    "family": "Arenaviridae",
+    "genus": "Mammarenavirus",
+    "species_demarcation": {
+      "primary_method": "nt_identity + host",
+      "regions": [
+        "S_segment",
+        "L_segment"
+      ],
+      "thresholds": {
+        "S_segment_nt_identity_max_same_species": 0.8,
+        "L_segment_nt_identity_max_same_species": 0.76
+      },
+      "description": "Species demarcation: <80% nt identity in S RNA segment AND <76% identity in L RNA segment; association with distinct main host."
+    }
+  },
+  "arenaviridae_reptarenavirus": {
+    "family": "Arenaviridae",
+    "genus": "Reptarenavirus",
+    "species_demarcation": {
+      "primary_method": "nt_identity + host",
+      "regions": [
+        "S_segment",
+        "L_segment"
+      ],
+      "thresholds": {
+        "S_segment_nt_identity_max_same_species": 0.8,
+        "L_segment_nt_identity_max_same_species": 0.76
+      },
+      "description": "Species demarcation: <80% nt identity in S RNA segment AND <76% identity in L RNA segment; association with distinct main host."
+    }
+  },
+  "arenaviridae_innmovirus": {
+    "family": "Arenaviridae",
+    "genus": "Innmovirus",
+    "species_demarcation": {
+      "primary_method": "not_applicable",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "bornaviridae_carbovirus": {
+    "family": "Bornaviridae",
+    "genus": "Carbovirus",
+    "species_demarcation": {
+      "primary_method": "PASC + biology",
+      "regions": [
+        "coding_complete_genome"
+      ],
+      "thresholds": {
+        "PASC_nt_identity_cutoff_min": 0.72,
+        "PASC_nt_identity_cutoff_max": 0.75
+      },
+      "description": "Species demarcation by PASC of coding-complete genome sequences with cut-off at 72-75% nt identity, plus antigenic relationships and host range."
+    }
+  },
+  "bornaviridae_orthobornavirus": {
+    "family": "Bornaviridae",
+    "genus": "Orthobornavirus",
+    "species_demarcation": {
+      "primary_method": "PASC + biology",
+      "regions": [
+        "coding_complete_genome"
+      ],
+      "thresholds": {
+        "PASC_nt_identity_cutoff_min": 0.72,
+        "PASC_nt_identity_cutoff_max": 0.75
+      },
+      "description": "Species demarcation by PASC of coding-complete genome sequences with cut-off at 72-75% nt identity, plus antigenic relationships and host range."
+    }
+  },
+  "bornaviridae_cultervirus": {
+    "family": "Bornaviridae",
+    "genus": "Cultervirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "caliciviridae_bavovirus": {
+    "family": "Caliciviridae",
+    "genus": "Bavovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus or criteria not yet defined."
+    }
+  },
+  "caliciviridae_minovirus": {
+    "family": "Caliciviridae",
+    "genus": "Minovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus or criteria not yet defined."
+    }
+  },
+  "caliciviridae_nacovirus": {
+    "family": "Caliciviridae",
+    "genus": "Nacovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus or criteria not yet defined."
+    }
+  },
+  "caliciviridae_nebovirus": {
+    "family": "Caliciviridae",
+    "genus": "Nebovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus or criteria not yet defined."
+    }
+  },
+  "caliciviridae_norovirus": {
+    "family": "Caliciviridae",
+    "genus": "Norovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus or criteria not yet defined."
+    }
+  },
+  "caliciviridae_recovirus": {
+    "family": "Caliciviridae",
+    "genus": "Recovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus or criteria not yet defined."
+    }
+  },
+  "caliciviridae_salovirus": {
+    "family": "Caliciviridae",
+    "genus": "Salovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus or criteria not yet defined."
+    }
+  },
+  "caliciviridae_sapovirus": {
+    "family": "Caliciviridae",
+    "genus": "Sapovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus or criteria not yet defined."
+    }
+  },
+  "caliciviridae_valovirus": {
+    "family": "Caliciviridae",
+    "genus": "Valovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus or criteria not yet defined."
+    }
+  },
+  "caliciviridae_lagovirus": {
+    "family": "Caliciviridae",
+    "genus": "Lagovirus",
+    "species_demarcation": {
+      "primary_method": "phylogeny",
+      "regions": [
+        "VP1_capsid"
+      ],
+      "thresholds": {},
+      "description": "Two species based on phylogenetic relationships; proposal to merge into single species with genogroups."
+    }
+  },
+  "caliciviridae_vesivirus": {
+    "family": "Caliciviridae",
+    "genus": "Vesivirus",
+    "species_demarcation": {
+      "primary_method": "phylogeny + host_range",
+      "regions": [
+        "whole_genome"
+      ],
+      "thresholds": {},
+      "description": "Species defined by phylogenetic differences, genome structure variation, and host range."
+    }
+  },
+  "filoviridae_orthoebolavirus": {
+    "family": "Filoviridae",
+    "genus": "Orthoebolavirus",
+    "species_demarcation": {
+      "primary_method": "PASC",
+      "regions": [
+        "coding_complete_genome"
+      ],
+      "thresholds": {
+        "genome_difference_min_inter_species": 0.23
+      },
+      "description": "Species demarcation by PASC: genomic sequences of different species differ by >=23%. Also considers gene overlaps, host/geographic distribution, pathogenicity."
+    }
+  },
+  "filoviridae_thamnovirus": {
+    "family": "Filoviridae",
+    "genus": "Thamnovirus",
+    "species_demarcation": {
+      "primary_method": "PASC",
+      "regions": [
+        "coding_complete_genome"
+      ],
+      "thresholds": {
+        "genome_difference_min_inter_species": 0.23
+      },
+      "description": "Species demarcation by PASC: genomic sequences of different species differ by >=23%. Also considers gene overlaps, host/geographic distribution, pathogenicity."
+    }
+  },
+  "filoviridae_cuevavirus": {
+    "family": "Filoviridae",
+    "genus": "Cuevavirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "filoviridae_dianlovirus": {
+    "family": "Filoviridae",
+    "genus": "Dianlovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "filoviridae_oblavirus": {
+    "family": "Filoviridae",
+    "genus": "Oblavirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "filoviridae_orthomarburgvirus": {
+    "family": "Filoviridae",
+    "genus": "Orthomarburgvirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "filoviridae_striavirus": {
+    "family": "Filoviridae",
+    "genus": "Striavirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "filoviridae_tapjovirus": {
+    "family": "Filoviridae",
+    "genus": "Tapjovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "flaviviridae_hepacivirus": {
+    "family": "Flaviviridae",
+    "genus": "Hepacivirus",
+    "species_demarcation": {
+      "primary_method": "aa_p_distance",
+      "regions": [
+        "NS3",
+        "NS5B"
+      ],
+      "thresholds": {
+        "aa_p_distance_NS3_min": 0.25,
+        "aa_p_distance_NS5B_min": 0.3
+      },
+      "description": "Species demarcation: >0.25 aa p-distance in NS3 (positions 1123-1566, HCV H77 numbering) AND >0.3 in NS5B (positions 2536-2959). Members of different species typically have restricted host ranges."
+    }
+  },
+  "flaviviridae_orthoflavivirus": {
+    "family": "Flaviviridae",
+    "genus": "Orthoflavivirus",
+    "species_demarcation": {
+      "primary_method": "phylogeny + ecology",
+      "regions": [
+        "whole_genome"
+      ],
+      "thresholds": {},
+      "description": "Species demarcation by combination of: nt/aa sequence data, antigenic characteristics, geographic/vector/host/disease association, ecological characteristics. No single numerical cutoff."
+    }
+  },
+  "flaviviridae_pegivirus": {
+    "family": "Flaviviridae",
+    "genus": "Pegivirus",
+    "species_demarcation": {
+      "primary_method": "aa_p_distance",
+      "regions": [
+        "NS3",
+        "NS5B"
+      ],
+      "thresholds": {
+        "aa_p_distance_NS3_min": 0.31,
+        "aa_p_distance_NS5B_min": 0.31,
+        "aa_p_distance_NS5B_max": 0.36
+      },
+      "description": "Species demarcation: >0.31 aa p-distance in NS3 (positions 888-1635, HPgV U22303 numbering) AND >0.31-0.36 in NS5B (positions 2398-2916)."
+    }
+  },
+  "paramyxoviridae_respirovirus": {
+    "family": "Paramyxoviridae",
+    "genus": "Respirovirus",
+    "species_demarcation": {
+      "primary_method": "phylogenetic_distance",
+      "regions": [
+        "L_protein"
+      ],
+      "thresholds": {
+        "L_protein_branch_length": 0.03
+      },
+      "description": "Species demarcation entirely based on L protein aa phylogenetic tree. Branch length threshold of 0.03 (JTT matrix-based model)."
+    }
+  },
+  "paramyxoviridae_morbillivirus": {
+    "family": "Paramyxoviridae",
+    "genus": "Morbillivirus",
+    "species_demarcation": {
+      "primary_method": "phylogenetic_distance",
+      "regions": [
+        "L_protein"
+      ],
+      "thresholds": {
+        "L_protein_branch_length": 0.03
+      },
+      "description": "Species demarcation entirely based on L protein aa phylogenetic tree. Branch length threshold of 0.03 (JTT matrix-based model)."
+    }
+  },
+  "paramyxoviridae_henipavirus": {
+    "family": "Paramyxoviridae",
+    "genus": "Henipavirus",
+    "species_demarcation": {
+      "primary_method": "phylogenetic_distance",
+      "regions": [
+        "L_protein"
+      ],
+      "thresholds": {
+        "L_protein_branch_length": 0.03
+      },
+      "description": "Species demarcation entirely based on L protein aa phylogenetic tree. Branch length threshold of 0.03 (JTT matrix-based model)."
+    }
+  },
+  "paramyxoviridae_orthorubulavirus": {
+    "family": "Paramyxoviridae",
+    "genus": "Orthorubulavirus",
+    "species_demarcation": {
+      "primary_method": "phylogenetic_distance",
+      "regions": [
+        "L_protein"
+      ],
+      "thresholds": {
+        "L_protein_branch_length": 0.03
+      },
+      "description": "Species demarcation entirely based on L protein aa phylogenetic tree. Branch length threshold of 0.03 (JTT matrix-based model)."
+    }
+  },
+  "paramyxoviridae_metaavulavirus": {
+    "family": "Paramyxoviridae",
+    "genus": "Metaavulavirus",
+    "species_demarcation": {
+      "primary_method": "phylogenetic_distance",
+      "regions": [
+        "L_protein"
+      ],
+      "thresholds": {
+        "L_protein_branch_length": 0.03
+      },
+      "description": "Species demarcation entirely based on L protein aa phylogenetic tree. Branch length threshold of 0.03 (JTT matrix-based model)."
+    }
+  },
+  "orthoherpesviridae_simplexvirus": {
+    "family": "Orthoherpesviridae",
+    "genus": "Simplexvirus",
+    "species_demarcation": {
+      "primary_method": "biology + phylogeny",
+      "regions": [
+        "DNA_polymerase"
+      ],
+      "thresholds": {},
+      "description": "Species demarcation deferred to family description: distinct epidemiological/biological characteristics and distinct genomes. No genus-specific numerical thresholds."
+    }
+  },
+  "orthoherpesviridae_varicellovirus": {
+    "family": "Orthoherpesviridae",
+    "genus": "Varicellovirus",
+    "species_demarcation": {
+      "primary_method": "biology + phylogeny",
+      "regions": [
+        "DNA_polymerase"
+      ],
+      "thresholds": {},
+      "description": "Species demarcation deferred to family description: distinct epidemiological/biological characteristics and distinct genomes. No genus-specific numerical thresholds."
+    }
+  },
+  "orthoherpesviridae_cytomegalovirus": {
+    "family": "Orthoherpesviridae",
+    "genus": "Cytomegalovirus",
+    "species_demarcation": {
+      "primary_method": "biology + phylogeny",
+      "regions": [
+        "DNA_polymerase"
+      ],
+      "thresholds": {},
+      "description": "Species demarcation deferred to family description: distinct epidemiological/biological characteristics and distinct genomes. No genus-specific numerical thresholds."
+    }
+  },
+  "orthoherpesviridae_roseolovirus": {
+    "family": "Orthoherpesviridae",
+    "genus": "Roseolovirus",
+    "species_demarcation": {
+      "primary_method": "biology + phylogeny",
+      "regions": [
+        "DNA_polymerase"
+      ],
+      "thresholds": {},
+      "description": "Species demarcation deferred to family description: distinct epidemiological/biological characteristics and distinct genomes. No genus-specific numerical thresholds."
+    }
+  },
+  "orthoherpesviridae_lymphocryptovirus": {
+    "family": "Orthoherpesviridae",
+    "genus": "Lymphocryptovirus",
+    "species_demarcation": {
+      "primary_method": "biology + phylogeny",
+      "regions": [
+        "DNA_polymerase"
+      ],
+      "thresholds": {},
+      "description": "Species demarcation deferred to family description: distinct epidemiological/biological characteristics and distinct genomes. No genus-specific numerical thresholds."
+    }
+  },
+  "orthoherpesviridae_rhadinovirus": {
+    "family": "Orthoherpesviridae",
+    "genus": "Rhadinovirus",
+    "species_demarcation": {
+      "primary_method": "biology + phylogeny",
+      "regions": [
+        "DNA_polymerase"
+      ],
+      "thresholds": {},
+      "description": "Species demarcation deferred to family description: distinct epidemiological/biological characteristics and distinct genomes. No genus-specific numerical thresholds."
+    }
+  },
+  "parvoviridae_protoparvovirus": {
+    "family": "Parvoviridae",
+    "genus": "Protoparvovirus",
+    "species_demarcation": {
+      "primary_method": "aa_identity + phylogeny",
+      "regions": [
+        "NS1_Rep"
+      ],
+      "thresholds": {
+        "aa_identity_NS1_min_same_species": 0.85
+      },
+      "description": "Viruses within a species are monophyletic and encode NS1/Rep proteins with >85% aa sequence identity."
+    }
+  },
+  "parvoviridae_bocaparvovirus": {
+    "family": "Parvoviridae",
+    "genus": "Bocaparvovirus",
+    "species_demarcation": {
+      "primary_method": "aa_identity + phylogeny",
+      "regions": [
+        "NS1_Rep"
+      ],
+      "thresholds": {
+        "aa_identity_NS1_min_same_species": 0.85
+      },
+      "description": "Viruses within a species are monophyletic and encode NS1/Rep proteins with >85% aa sequence identity."
+    }
+  },
+  "parvoviridae_dependoparvovirus": {
+    "family": "Parvoviridae",
+    "genus": "Dependoparvovirus",
+    "species_demarcation": {
+      "primary_method": "aa_identity + phylogeny",
+      "regions": [
+        "NS1_Rep"
+      ],
+      "thresholds": {
+        "aa_identity_NS1_min_same_species": 0.85
+      },
+      "description": "Viruses within a species are monophyletic and encode NS1/Rep proteins with >85% aa sequence identity."
+    }
+  },
+  "parvoviridae_erythroparvovirus": {
+    "family": "Parvoviridae",
+    "genus": "Erythroparvovirus",
+    "species_demarcation": {
+      "primary_method": "aa_identity + phylogeny",
+      "regions": [
+        "NS1_Rep"
+      ],
+      "thresholds": {
+        "aa_identity_NS1_min_same_species": 0.85
+      },
+      "description": "Viruses within a species are monophyletic and encode NS1/Rep proteins with >85% aa sequence identity."
+    }
+  },
+  "picornaviridae_enterovirus": {
+    "family": "Picornaviridae",
+    "genus": "Enterovirus",
+    "species_demarcation": {
+      "primary_method": "aa_divergence",
+      "regions": [
+        "polyprotein",
+        "P1_capsid",
+        "2C_3CD"
+      ],
+      "thresholds": {
+        "aa_divergence_polyprotein_max": 0.3,
+        "aa_divergence_P1_max": 0.4,
+        "aa_divergence_2C_3CD_max": 0.3
+      },
+      "description": "Members of same species: <30% divergent in polyprotein aa, <40% in P1, <30% in 2C+3CD. Share common genome organization."
+    }
+  },
+  "picornaviridae_hepatovirus": {
+    "family": "Picornaviridae",
+    "genus": "Hepatovirus",
+    "species_demarcation": {
+      "primary_method": "aa_divergence",
+      "regions": [
+        "polyprotein",
+        "P1_capsid",
+        "2C_3CD"
+      ],
+      "thresholds": {
+        "aa_divergence_polyprotein_max": 0.3,
+        "aa_divergence_P1_max": 0.3,
+        "aa_divergence_2C_3CD_max": 0.3
+      },
+      "description": "Members of same species: <30% divergent in polyprotein aa, <30% in P1, <30% in 2C+3CD. Share common genome organization."
+    }
+  },
+  "picornaviridae_parechovirus": {
+    "family": "Picornaviridae",
+    "genus": "Parechovirus",
+    "species_demarcation": {
+      "primary_method": "aa_divergence",
+      "regions": [
+        "polyprotein",
+        "P1_capsid",
+        "2C_3CD"
+      ],
+      "thresholds": {
+        "aa_divergence_polyprotein_max": 0.3,
+        "aa_divergence_P1_max": 0.3,
+        "aa_divergence_2C_3CD_max": 0.2
+      },
+      "description": "Members of same species: <30% divergent in polyprotein aa, <30% in P1, <20% in 2C+3CD. Share common genome organization."
+    }
+  },
+  "picornaviridae_kobuvirus": {
+    "family": "Picornaviridae",
+    "genus": "Kobuvirus",
+    "species_demarcation": {
+      "primary_method": "aa_divergence",
+      "regions": [
+        "polyprotein",
+        "P1_capsid",
+        "2C_3CD"
+      ],
+      "thresholds": {
+        "aa_divergence_polyprotein_max": 0.3,
+        "aa_divergence_P1_max": 0.3,
+        "aa_divergence_2C_3CD_max": 0.2
+      },
+      "description": "Members of same species: <30% divergent in polyprotein aa, <30% in P1, <20% in 2C+3CD. Share common genome organization."
+    }
+  },
+  "picornaviridae_aphthovirus": {
+    "family": "Picornaviridae",
+    "genus": "Aphthovirus",
+    "species_demarcation": {
+      "primary_method": "aa_divergence",
+      "regions": [
+        "polyprotein",
+        "P1_capsid",
+        "2C_3CD"
+      ],
+      "thresholds": {
+        "aa_divergence_polyprotein_max": 0.3,
+        "aa_divergence_P1_max": 0.4,
+        "aa_divergence_2C_3CD_max": 0.2
+      },
+      "description": "Members of same species: <30% divergent in polyprotein aa, <40% in P1, <20% in 2C+3CD. Share common genome organization."
+    }
+  },
+  "picornaviridae_cardiovirus": {
+    "family": "Picornaviridae",
+    "genus": "Cardiovirus",
+    "species_demarcation": {
+      "primary_method": "aa_divergence",
+      "regions": [
+        "polyprotein",
+        "P1_capsid",
+        "2C_3CD"
+      ],
+      "thresholds": {
+        "aa_divergence_polyprotein_max": 0.3,
+        "aa_divergence_P1_max": 0.4,
+        "aa_divergence_2C_3CD_max": 0.3
+      },
+      "description": "Members of same species: <30% divergent in polyprotein aa, <40% in P1, <30% in 2C+3CD. Share common genome organization."
+    }
+  },
+  "picornaviridae_sapelovirus": {
+    "family": "Picornaviridae",
+    "genus": "Sapelovirus",
+    "species_demarcation": {
+      "primary_method": "aa_divergence",
+      "regions": [
+        "polyprotein",
+        "P1_capsid",
+        "2C_3CD"
+      ],
+      "thresholds": {
+        "aa_divergence_polyprotein_max": 0.3,
+        "aa_divergence_P1_max": 0.36,
+        "aa_divergence_2C_3CD_max": 0.3
+      },
+      "description": "Members of same species: <30% divergent in polyprotein aa, <36% in P1, <30% in 2C+3CD. Share common genome organization."
+    }
+  },
+  "picornaviridae_senecavirus": {
+    "family": "Picornaviridae",
+    "genus": "Senecavirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "pneumoviridae_metapneumovirus": {
+    "family": "Pneumoviridae",
+    "genus": "Metapneumovirus",
+    "species_demarcation": {
+      "primary_method": "host_range + serology",
+      "regions": [
+        "N_protein",
+        "F_protein",
+        "G_protein"
+      ],
+      "thresholds": {},
+      "description": "Species distinguished by host range and cross-neutralization. No explicit numerical cutoff for species demarcation."
+    }
+  },
+  "pneumoviridae_orthopneumovirus": {
+    "family": "Pneumoviridae",
+    "genus": "Orthopneumovirus",
+    "species_demarcation": {
+      "primary_method": "host_range + serology",
+      "regions": [
+        "N_protein",
+        "F_protein",
+        "G_protein"
+      ],
+      "thresholds": {},
+      "description": "Species distinguished by host range and cross-neutralization. No explicit numerical cutoff for species demarcation."
+    }
+  },
+  "poxviridae_orthopoxvirus": {
+    "family": "Poxviridae",
+    "genus": "Orthopoxvirus",
+    "species_demarcation": {
+      "primary_method": "nt_identity",
+      "regions": [
+        "core_genome"
+      ],
+      "thresholds": {
+        "nt_identity_min_same_species": 0.98,
+        "nt_identity_inter_species_max": 0.96
+      },
+      "description": "Within species: >98% nt identity in core genome. Between non-North American species: >96% identity. Additional criteria: host range, geographic distribution, pathogenicity."
+    }
+  },
+  "poxviridae_leporipoxvirus": {
+    "family": "Poxviridae",
+    "genus": "Leporipoxvirus",
+    "species_demarcation": {
+      "primary_method": "nt_identity",
+      "regions": [
+        "core_genome"
+      ],
+      "thresholds": {
+        "nt_identity_max_same_species": 0.98
+      },
+      "description": "General chordopoxvirus criterion: <98% nt identity in central core genome delineates species; >98% indicates strains of same species."
+    }
+  },
+  "poxviridae_avipoxvirus": {
+    "family": "Poxviridae",
+    "genus": "Avipoxvirus",
+    "species_demarcation": {
+      "primary_method": "phylogeny + biology",
+      "regions": [
+        "whole_genome"
+      ],
+      "thresholds": {},
+      "description": "Species demarcation by phylogenetic analysis, gene content, synteny, host species, and disease characteristics."
+    }
+  },
+  "poxviridae_parapoxvirus": {
+    "family": "Poxviridae",
+    "genus": "Parapoxvirus",
+    "species_demarcation": {
+      "primary_method": "phylogeny + biology",
+      "regions": [
+        "whole_genome"
+      ],
+      "thresholds": {},
+      "description": "Species demarcation by phylogenetic analysis, gene content, synteny, host species, and disease characteristics."
+    }
+  },
+  "poxviridae_molluscipoxvirus": {
+    "family": "Poxviridae",
+    "genus": "Molluscipoxvirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "rhabdoviridae_lyssavirus": {
+    "family": "Rhabdoviridae",
+    "genus": "Lyssavirus",
+    "species_demarcation": {
+      "primary_method": "nt_identity + phylogeny + serology",
+      "regions": [
+        "N_gene",
+        "concatenated_N_P_M_G_L"
+      ],
+      "thresholds": {
+        "N_gene_nt_identity_threshold": 0.8,
+        "concatenated_nt_identity_threshold": 0.8
+      },
+      "description": "Species demarcation: 78-80% nt identity for complete N gene; 80% nt identity for concatenated N+P+M+G+L coding regions. Plus phylogenetic placement, serological distinction, and ecological niche."
+    }
+  },
+  "rhabdoviridae_vesiculovirus": {
+    "family": "Rhabdoviridae",
+    "genus": "Vesiculovirus",
+    "species_demarcation": {
+      "primary_method": "aa_divergence + serology",
+      "regions": [
+        "L_protein",
+        "N_protein",
+        "G_protein"
+      ],
+      "thresholds": {
+        "aa_divergence_L_min": 0.2,
+        "aa_divergence_N_min": 0.1,
+        "aa_divergence_G_min": 0.15
+      },
+      "description": "Species demarcation: minimum aa divergence of 20% in L, 10% in N, 15% in G proteins. Plus serological distinction and ecological niche."
+    }
+  },
+  "rhabdoviridae_ephemerovirus": {
+    "family": "Rhabdoviridae",
+    "genus": "Ephemerovirus",
+    "species_demarcation": {
+      "primary_method": "aa_divergence + serology",
+      "regions": [
+        "L_protein",
+        "N_protein"
+      ],
+      "thresholds": {
+        "aa_divergence_L_min": 0.15,
+        "aa_divergence_N_min": 0.08
+      },
+      "description": "Species demarcation: minimum aa divergence of 15% in L protein, 8% in N protein. Plus serological distinction and genome organisation differences."
+    }
+  },
+  "rhabdoviridae_novirhabdovirus": {
+    "family": "Rhabdoviridae",
+    "genus": "Novirhabdovirus",
+    "species_demarcation": {
+      "primary_method": "nt_divergence + aa_divergence + serology",
+      "regions": [
+        "G_gene",
+        "G_protein"
+      ],
+      "thresholds": {
+        "nt_divergence_G_min": 0.31,
+        "aa_divergence_G_min": 0.26
+      },
+      "description": "Species demarcation: minimum 31% nt divergence and 26% aa divergence in G gene/protein. Plus phylogenetic monophyly, serological distinction, and ecological niche."
+    }
+  },
+  "rhabdoviridae_ledantevirus": {
+    "family": "Rhabdoviridae",
+    "genus": "Ledantevirus",
+    "species_demarcation": {
+      "primary_method": "aa_divergence + serology",
+      "regions": [
+        "L_protein",
+        "G_protein"
+      ],
+      "thresholds": {
+        "aa_divergence_L_min": 0.07,
+        "aa_divergence_G_min": 0.15
+      },
+      "description": "Species demarcation: minimum aa divergence of 7% in L protein, 15% in G protein. Plus genome organisation, serology, and ecological niche."
+    }
+  },
+  "rhabdoviridae_sigmavirus": {
+    "family": "Rhabdoviridae",
+    "genus": "Sigmavirus",
+    "species_demarcation": {
+      "primary_method": "aa_divergence + host",
+      "regions": [
+        "L_protein"
+      ],
+      "thresholds": {
+        "aa_divergence_L_min": 0.2,
+        "aa_diversity_within_species_max": 0.05
+      },
+      "description": "Species demarcation: minimum 20% L protein aa divergence between species; <5% within species. Host species fidelity (vertical transmission only)."
+    }
+  },
+  "peribunyaviridae_orthobunyavirus": {
+    "family": "Peribunyaviridae",
+    "genus": "Orthobunyavirus",
+    "species_demarcation": {
+      "primary_method": "aa_identity",
+      "regions": [
+        "L_protein"
+      ],
+      "thresholds": {
+        "aa_identity_L_max_same_species": 0.96
+      },
+      "description": "Species demarcation: <96% identity in complete L protein aa sequence."
+    }
+  },
+  "peribunyaviridae_gryffinivirus": {
+    "family": "Peribunyaviridae",
+    "genus": "Gryffinivirus",
+    "species_demarcation": {
+      "primary_method": "aa_identity",
+      "regions": [
+        "L_protein"
+      ],
+      "thresholds": {
+        "aa_identity_L_max_same_species": 0.9
+      },
+      "description": "Species demarcation: <90% identity in complete L protein aa sequence."
+    }
+  },
+  "peribunyaviridae_herbevirus": {
+    "family": "Peribunyaviridae",
+    "genus": "Herbevirus",
+    "species_demarcation": {
+      "primary_method": "aa_identity",
+      "regions": [
+        "L_protein_core_polymerase"
+      ],
+      "thresholds": {
+        "aa_identity_core_polymerase_max": 0.9
+      },
+      "description": "Species demarcation: <90% aa identity in ~1kb core polymerase domain (premotif A to motif E) of L protein."
+    }
+  },
+  "peribunyaviridae_pacuvirus": {
+    "family": "Peribunyaviridae",
+    "genus": "Pacuvirus",
+    "species_demarcation": {
+      "primary_method": "evolutionary_distance",
+      "regions": [
+        "concatenated_S_M_L"
+      ],
+      "thresholds": {
+        "WAG_distance_min": 0.1
+      },
+      "description": "Species defined by pairwise evolutionary distance >0.1 (WAG substitution model) on concatenated aa sequences of all three segments."
+    }
+  },
+  "peribunyaviridae_khurdivirus": {
+    "family": "Peribunyaviridae",
+    "genus": "Khurdivirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "peribunyaviridae_lakivirus": {
+    "family": "Peribunyaviridae",
+    "genus": "Lakivirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "peribunyaviridae_lambavirus": {
+    "family": "Peribunyaviridae",
+    "genus": "Lambavirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "peribunyaviridae_shangavirus": {
+    "family": "Peribunyaviridae",
+    "genus": "Shangavirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus."
+    }
+  },
+  "sedoreoviridae_orbivirus": {
+    "family": "Sedoreoviridae",
+    "genus": "Orbivirus",
+    "species_demarcation": {
+      "primary_method": "nt_identity + serology",
+      "regions": [
+        "Seg3_VP3",
+        "Seg1_RdRp"
+      ],
+      "thresholds": {
+        "Seg3_nt_identity_min_same_species": 0.76,
+        "Seg3_aa_identity_min_same_species": 0.83,
+        "Seg1_RdRp_aa_identity_min_same_species": 0.78
+      },
+      "description": "Species demarcation: within species >76% Seg3 nt identity (>83% aa), >78% Seg1 RdRp aa identity. Between species <74% Seg3 identity. Plus serological cross-reaction (VP7 ELISA) and vector/host specificity."
+    }
+  },
+  "sedoreoviridae_rotavirus": {
+    "family": "Sedoreoviridae",
+    "genus": "Rotavirus",
+    "species_demarcation": {
+      "primary_method": "aa_identity + serology + reassortment",
+      "regions": [
+        "Seg6_VP6"
+      ],
+      "thresholds": {
+        "VP6_aa_identity_cutoff": 0.53
+      },
+      "description": "Species demarcation: VP6 aa identity cutoff of 53%. Plus serological cross-reactivity (VP6 ELISA) and inability to reassort between species."
+    }
+  },
+  "sedoreoviridae_phytoreovirus": {
+    "family": "Sedoreoviridae",
+    "genus": "Phytoreovirus",
+    "species_demarcation": {
+      "primary_method": "aa_identity",
+      "regions": [
+        "P8_major_capsid",
+        "P5_core"
+      ],
+      "thresholds": {
+        "P8_aa_identity_min_same_species": 0.8,
+        "P8_aa_identity_max_inter_species": 0.56
+      },
+      "description": "Species demarcation: P8/P5 aa identity >80% within species, <56% between species. Plus host plant family and cross-hybridization."
+    }
+  },
+  "sedoreoviridae_seadornavirus": {
+    "family": "Sedoreoviridae",
+    "genus": "Seadornavirus",
+    "species_demarcation": {
+      "primary_method": "nt_identity + aa_identity",
+      "regions": [
+        "Seg12",
+        "Seg1_RdRp"
+      ],
+      "thresholds": {
+        "Seg12_nt_identity_min_same_species": 0.89,
+        "RdRp_aa_identity_min_same_species": 0.94,
+        "RdRp_aa_identity_max_inter_species": 0.5
+      },
+      "description": "Species demarcation: within species >89% Seg12 nt identity, >94% RdRp aa identity. Between species <50% RdRp aa identity."
+    }
+  },
+  "sedoreoviridae_cardoreovirus": {
+    "family": "Sedoreoviridae",
+    "genus": "Cardoreovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus; criteria not defined."
+    }
+  },
+  "sedoreoviridae_mimoreovirus": {
+    "family": "Sedoreoviridae",
+    "genus": "Mimoreovirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus; criteria not defined."
+    }
+  },
+  "spinareoviridae_aquareovirus": {
+    "family": "Spinareoviridae",
+    "genus": "Aquareovirus",
+    "species_demarcation": {
+      "primary_method": "nt_identity + aa_identity",
+      "regions": [
+        "Seg10_VP7",
+        "RdRp"
+      ],
+      "thresholds": {
+        "Seg10_nt_identity_max_inter_species": 0.55,
+        "VP7_aa_identity_max_inter_species": 0.36,
+        "RdRp_aa_identity_min_same_species": 0.95,
+        "RdRp_aa_identity_inter_species_range": "0.57-0.74"
+      },
+      "description": "Species demarcation: between species <55% Seg10 nt identity (<36% VP7 aa). Within species >95% RdRp aa identity; between species 57-74%. Cross-hybridization at >17% mismatch."
+    }
+  },
+  "spinareoviridae_coltivirus": {
+    "family": "Spinareoviridae",
+    "genus": "Coltivirus",
+    "species_demarcation": {
+      "primary_method": "nt_identity + aa_identity",
+      "regions": [
+        "Seg12",
+        "VP6",
+        "VP7",
+        "VP12"
+      ],
+      "thresholds": {
+        "Seg12_nt_identity_min_same_species": 0.89,
+        "VP6_aa_identity_min": 0.55,
+        "VP7_aa_identity_min": 0.57,
+        "VP12_aa_identity_min": 0.6
+      },
+      "description": "Species demarcation: >89% Seg12 nt identity within species. Variable protein aa thresholds: >55% VP6, >57% VP7, >60% VP12."
+    }
+  },
+  "spinareoviridae_orthoreovirus": {
+    "family": "Spinareoviridae",
+    "genus": "Orthoreovirus",
+    "species_demarcation": {
+      "primary_method": "nt_identity + aa_identity + reassortment",
+      "regions": [
+        "core_proteins",
+        "outer_capsid_proteins",
+        "genome_segments"
+      ],
+      "thresholds": {
+        "core_aa_identity_min_same_species": 0.85,
+        "core_aa_identity_max_inter_species": 0.65,
+        "outer_capsid_aa_identity_min_same_species": 0.55,
+        "outer_capsid_aa_identity_max_inter_species": 0.35,
+        "nt_identity_min_same_species": 0.75,
+        "nt_identity_max_inter_species": 0.6
+      },
+      "description": "Species demarcation: core proteins >85% aa within species vs <65% between; outer capsid >55% within vs <35% between; genome segments >75% nt within vs <60% between. Plus reassortment capacity."
+    }
+  },
+  "spinareoviridae_mycoreovirus": {
+    "family": "Spinareoviridae",
+    "genus": "Mycoreovirus",
+    "species_demarcation": {
+      "primary_method": "aa_identity + genome_segment_number",
+      "regions": [
+        "VP3_capping_enzyme",
+        "RdRp"
+      ],
+      "thresholds": {
+        "VP3_aa_identity_inter_species": 0.29,
+        "RdRp_aa_identity_max_inter_species": 0.39
+      },
+      "description": "Species demarcation: between species ~29% VP3 capping enzyme aa identity, ~39% RdRp aa identity. Also considers host range and segment number (11 vs 12)."
+    }
+  },
+  "spinareoviridae_fijivirus": {
+    "family": "Spinareoviridae",
+    "genus": "Fijivirus",
+    "species_demarcation": {
+      "primary_method": "aa_identity + serology + host",
+      "regions": [
+        "Seg7_8_9_10_proteins",
+        "major_capsid_nt"
+      ],
+      "thresholds": {
+        "protein_aa_identity_max_inter_species": 0.4,
+        "major_capsid_nt_identity_max_inter_group": 0.55
+      },
+      "description": "Species demarcation: between species <40% aa identity in Seg7-10 proteins; <55% major capsid nt identity between groups. Plus serology, host/vector."
+    }
+  },
+  "spinareoviridae_cypovirus": {
+    "family": "Spinareoviridae",
+    "genus": "Cypovirus",
+    "species_demarcation": {
+      "primary_method": "electropherotype + serology",
+      "regions": [
+        "dsRNA_segments"
+      ],
+      "thresholds": {},
+      "description": "Species demarcation: distinctive dsRNA electropherotype patterns, confirmed by cross-hybridization and serological comparisons. 16 species."
+    }
+  },
+  "spinareoviridae_dinovernavirus": {
+    "family": "Spinareoviridae",
+    "genus": "Dinovernavirus",
+    "species_demarcation": {
+      "primary_method": "general_family_criteria",
+      "regions": [],
+      "thresholds": {},
+      "description": "Uses general family-level criteria (reassortment, cross-hybridization, sequence analysis, serology)."
+    }
+  },
+  "spinareoviridae_idnoreovirus": {
+    "family": "Spinareoviridae",
+    "genus": "Idnoreovirus",
+    "species_demarcation": {
+      "primary_method": "general_family_criteria",
+      "regions": [],
+      "thresholds": {},
+      "description": "Uses general family-level criteria (reassortment, cross-hybridization, sequence analysis, serology)."
+    }
+  },
+  "spinareoviridae_oryzavirus": {
+    "family": "Spinareoviridae",
+    "genus": "Oryzavirus",
+    "species_demarcation": {
+      "primary_method": "general_family_criteria",
+      "regions": [],
+      "thresholds": {},
+      "description": "Uses general family-level criteria (reassortment, cross-hybridization, sequence analysis, serology)."
+    }
+  },
+  "amnoonviridae_tilapinevirus": {
+    "family": "Amnoonviridae",
+    "genus": "Tilapinevirus",
+    "species_demarcation": {
+      "primary_method": "not_applicable",
+      "regions": [],
+      "thresholds": {},
+      "description": "Single species genus in monotypic family."
+    }
+  },
+  "asfarviridae_asfivirus": {
+    "family": "Asfarviridae",
+    "genus": "Asfivirus",
+    "species_demarcation": {
+      "primary_method": "not_defined",
+      "regions": [],
+      "thresholds": {},
+      "description": "No demarcation criteria in ICTV report. Interim report only."
+    }
+  },
+  "picobirnaviridae_orthopicobirnavirus": {
+    "family": "Picobirnaviridae",
+    "genus": "Orthopicobirnavirus",
+    "species_demarcation": {
+      "primary_method": "aa_identity + host",
+      "regions": [
+        "RdRp",
+        "capsid"
+      ],
+      "thresholds": {},
+      "description": "Species demarcation based on host specificity and capsid sequence divergence. Three genogroups (29-81% within, 18-25% between). Classification evolving."
+    }
+  }
+}

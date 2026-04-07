@@ -22,6 +22,7 @@ from .models import ClassifyResult, Evidence, TaxonomyResult
 from .tools.alignment import parse_fasta, pairwise_identity
 from .tools.blast import blastn, diamond_blastp
 from .tools.taxonomy import full_taxonomy, lookup_by_family, lookup_species, search_any_level
+from .tools.corona_pud import corona_classify_pud
 
 # ── Tool definitions (Claude tool_use schema) ───────────────────────────────
 
@@ -178,6 +179,33 @@ TOOLS = [
                 },
             },
             "required": ["sequence", "seq_type"],
+        },
+    },
+    {
+        "name": "corona_pud_classify",
+        "description": (
+            "Coronaviridae-specific subgenus/genus/subfamily/species classification using the "
+            "DEmARC PUD (Pairwise Uncorrected Distance) method. Translates ORF1ab from the "
+            "nucleotide genome, extracts 5 conserved replicase domains (3CLpro, NiRAN, RdRp, "
+            "ZBD, HEL1), and computes PUD against all Coronaviridae reference sequences. "
+            "Applies ICTV Table 4 thresholds (Ziebuhr et al. 2021) to assign rank. "
+            "Use this tool when the query sequence is identified as Coronaviridae and you need "
+            "subgenus-level resolution."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "genome_nt": {
+                    "type": "string",
+                    "description": "Complete (or near-complete) coronavirus nucleotide genome sequence, >20 kb",
+                },
+                "top_n": {
+                    "type": "integer",
+                    "default": 5,
+                    "description": "Number of top reference hits to return",
+                },
+            },
+            "required": ["genome_nt"],
         },
     },
 ]
@@ -379,6 +407,12 @@ def _execute_tool(name: str, inputs: dict) -> str:
                 results.append(hit_info)
             return json.dumps({"hits": results, "count": len(results)})
 
+        elif name == "corona_pud_classify":
+            genome_nt = inputs["genome_nt"].replace("\n", "").replace(" ", "")
+            top_n = int(inputs.get("top_n", 5))
+            result = corona_classify_pud(genome_nt, top_n=top_n)
+            return json.dumps(result)
+
         else:
             return json.dumps({"error": f"Unknown tool: {name}"})
 
@@ -407,6 +441,7 @@ Your task is to classify a virus sequence by strictly following ICTV official de
 - Compare the global_pairwise_identity values from blast_and_compare against the ICTV thresholds.
 - Use lookup_taxonomy to get the full taxonomy of the best matching reference species.
 - Determine if the query is: same species, same genus but new species, or more divergent.
+- For Coronaviridae: use corona_pud_classify (instead of or in addition to blast_and_compare) to get subgenus-level resolution via DEmARC PUD on the 5 replicase domains.
 
 **Step 4: Output result**
 - Output the final JSON classification.
@@ -414,6 +449,7 @@ Your task is to classify a virus sequence by strictly following ICTV official de
 ## Key rules
 - ALWAYS call blast_and_compare first — it provides both family identification AND pairwise identity in one step.
 - Use the global_pairwise_identity (not blast_pident) for ICTV threshold comparison, as BLAST pident is local alignment only.
+- For Coronaviridae sequences >20 kb, call corona_pud_classify to get subgenus classification using DEmARC PUD thresholds.
 - Cite specific ICTV criteria thresholds and how your computed values compare.
 - Confidence levels: High (identity clearly above/below threshold), Medium (near threshold ±5%), Low (insufficient data).
 

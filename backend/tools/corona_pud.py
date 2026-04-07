@@ -1,0 +1,394 @@
+"""
+Coronaviridae subgenus/genus/subfamily/species classification via DEmARC PUD.
+
+Workflow:
+1. Translate ORF1ab from query genome (nucleotide input)
+2. Use hmmsearch to extract 5 replicase domains (3CLpro, NiRAN, RdRp, ZBD, HEL1)
+3. Align domains against reference set via hmmalign
+4. Compute pairwise uncorrected distance (PUD) to each reference
+5. Map to taxonomy via DEmARC thresholds
+
+PUD thresholds (Coronaviridae, Table 4, Ziebuhr et al. 2021):
+  Species:   PUD  7.5%  (PPD 0.095)
+  Subgenus:  PUD 13.2-14.2%  (PPD 0.200-0.221)
+  Genus:     PUD 35.1-36.0%  (PPD 0.873-0.909)
+  Subfamily: PUD 46.8-51.0%  (PPD 1.472-1.757)
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import subprocess
+import tempfile
+import textwrap
+from pathlib import Path
+from typing import Optional
+
+from Bio import SeqIO
+from Bio.Seq import Seq
+
+HMMER_BIN = Path("/home/renzirui/micromamba/bin")
+MAFFT_BIN = "/home/renzirui/micromamba/bin/mafft"
+HMM_FILE  = Path(__file__).parent.parent.parent / "data" / "hmm" / "CoV_5domains.hmm"
+REF_FASTA = Path("/home/renzirui/Projects/ICTV/ictv_classifier/reference/Coronaviridae/sequences.fasta")
+TAX_DB    = Path(__file__).parent.parent.parent / "data" / "taxonomy.db"
+
+# DEmARC PUD thresholds
+THRESHOLDS = {
+    "species":   0.075,
+    "subgenus":  0.142,   # upper bound of subgenus range
+    "genus":     0.360,   # upper bound of genus range
+    "subfamily": 0.510,   # upper bound of subfamily range
+    "family":    0.681,
+}
+
+# Conserved slippery sequence for -1 ribosomal frameshift in Orthocoronavirinae
+# The UUUAAAC heptamer is at the 3' end of ORF1a
+SLIPPERY_SEQ = "TTTAAAC"
+# Conserved stem-loop immediately downstream to confirm frameshift site
+SLIPPERY_DOWNSTREAM = "TTTAAACGAAATTTG"  # partial pattern
+
+# Domain coordinates in pp1ab (1-based aa, relative to SARS-CoV-2 concatenated ORF1a+ORF1b)
+# Used as fallback if hmmsearch fails
+DOMAIN_COORDS_SARS2 = {
+    "3CLpro": (3264, 3569),
+    "NiRAN":  (4393, 4535),
+    "RdRp":   (4536, 4932),
+    "ZBD":    (5316, 5443),
+    "HEL1":   (5444, 5836),
+}
+DOMAIN_ORDER = ["3CLpro", "NiRAN", "RdRp", "ZBD", "HEL1"]
+
+
+def _run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
+    env = os.environ.copy()
+    for k in ["http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY",
+              "all_proxy", "ALL_PROXY"]:
+        env.pop(k, None)
+    return subprocess.run(cmd, env=env, **kwargs)
+
+
+def find_orf1a_start(genome: str) -> int:
+    """Find ORF1a start: the first ATG in the 5' region that initiates a long ORF (>3000 aa)."""
+    for i in range(0, min(1000, len(genome) - 2)):
+        if genome[i:i+3] == "ATG":
+            test = Seq(genome[i: i + 15000]).translate(to_stop=True)
+            if len(test) > 3000:
+                return i + 1  # 1-based
+    return 266  # fallback to SARS-CoV-2 known start
+
+
+def find_frameshift_site(genome: str, orf1a_start: int) -> int:
+    """
+    Find the -1 ribosomal frameshift site by locating the conserved
+    slippery sequence TTTAAAC within ORF1a.
+    Returns the 0-based nt position of the start of the slippery sequence.
+    """
+    search_start = orf1a_start + 10000  # slippage is in the second half of ORF1a
+    search_end   = orf1a_start + 18000
+    search_end   = min(search_end, len(genome))
+    region = genome[search_start: search_end]
+
+    pos = region.find(SLIPPERY_SEQ)
+    if pos >= 0:
+        return search_start + pos  # 0-based absolute
+    # fallback: try searching more broadly
+    region2 = genome[5000: min(20000, len(genome))]
+    pos = region2.find(SLIPPERY_SEQ)
+    if pos >= 0:
+        return 5000 + pos
+    return -1
+
+
+def translate_orf1ab(genome_seq: str) -> Optional[str]:
+    """
+    Translate ORF1ab from genome nucleotide sequence.
+    Detects the ribosomal -1 frameshift site (TTTAAAC) automatically.
+    Returns the concatenated pp1a + pp1b amino acid sequence.
+    """
+    genome = genome_seq.upper().replace(" ", "").replace("\n", "")
+    if len(genome) < 20000:
+        return None
+
+    # Find ORF1a start
+    orf1a_start0 = find_orf1a_start(genome) - 1  # 0-based
+
+    # Find frameshift site
+    slip_pos = find_frameshift_site(genome, orf1a_start0)
+    if slip_pos < 0:
+        # Fallback to SARS-CoV-2 coords
+        slip_pos = 13462  # 0-based (= nt 13463 1-based)
+
+    # ORF1a: from start to frameshift site (translate frame 0, stop at stop codon)
+    orf1a_nt = Seq(genome[orf1a_start0: slip_pos + len(SLIPPERY_SEQ)])
+    pp1a = str(orf1a_nt.translate(to_stop=True))
+
+    # ORF1b: from frameshift site - 1 (the -1 slip), stop at stop codon
+    orf1b_start0 = slip_pos + len(SLIPPERY_SEQ) - 1  # -1 slip: back one nt
+    orf1b_end0   = min(slip_pos + 12000, len(genome))
+    orf1b_nt = Seq(genome[orf1b_start0: orf1b_end0])
+    pp1b = str(orf1b_nt.translate(to_stop=True))
+
+    return pp1a + pp1b
+
+
+def extract_domains_by_coords(pp1ab: str) -> dict[str, str]:
+    """
+    Extract domain sequences using coordinate-based search.
+    Tries SARS-CoV-2 coordinates first; if pp1ab is much shorter/longer,
+    scales coordinates proportionally.
+    """
+    SARS2_LEN = 7098
+    scale = len(pp1ab) / SARS2_LEN
+
+    domains = {}
+    for dom, (start, end) in DOMAIN_COORDS_SARS2.items():
+        s = max(0, int((start - 1) * scale))
+        e = min(len(pp1ab), int(end * scale))
+        if e > s + 50:
+            domains[dom] = pp1ab[s: e]
+    return domains
+
+
+def extract_domains_by_hmm(pp1ab: str, query_id: str = "query") -> dict[str, str]:
+    """Extract domain sequences using hmmsearch (more robust for divergent viruses)."""
+    if not HMM_FILE.exists():
+        return extract_domains_by_coords(pp1ab)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        query_faa = tmp / "query.faa"
+        query_faa.write_text(f">{query_id}\n{textwrap.fill(pp1ab, 60)}\n")
+
+        tbl_out = tmp / "hmm_hits.tbl"
+        dom_out = tmp / "hmm_dom.tbl"
+
+        cmd = [
+            str(HMMER_BIN / "hmmsearch"),
+            "--noali", "--domtblout", str(dom_out),
+            "--tblout", str(tbl_out),
+            "-E", "1e-5",
+            str(HMM_FILE), str(query_faa)
+        ]
+        result = _run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            return extract_domains_by_coords(pp1ab)
+
+        # Parse domain table
+        domains = {}
+        for line in dom_out.read_text().splitlines():
+            if line.startswith("#"):
+                continue
+            parts = line.split()
+            if len(parts) < 20:
+                continue
+            hmm_name = parts[3]    # HMM name (CoV_3CLpro etc.)
+            ali_start = int(parts[17]) - 1  # 0-based
+            ali_end   = int(parts[18])
+            dom_name = hmm_name.replace("CoV_", "")
+            if dom_name in DOMAIN_ORDER:
+                # Take best hit (highest score) per domain
+                if dom_name not in domains or float(parts[13]) > float(domains[dom_name][0]):
+                    domains[dom_name] = (float(parts[13]), pp1ab[ali_start: ali_end])
+
+        return {k: v[1] for k, v in domains.items() if len(v[1]) > 50}
+
+
+def compute_pud(seq1: str, seq2: str) -> float:
+    """Compute pairwise uncorrected distance (PUD) between two aligned sequences.
+    PUD = fraction of positions with different residues (gaps excluded from denominator)."""
+    diff = 0
+    total = 0
+    for a, b in zip(seq1, seq2):
+        if a == "-" and b == "-":
+            continue
+        if a == "-" or b == "-":
+            continue  # ignore gap-vs-residue positions
+        total += 1
+        if a != b:
+            diff += 1
+    if total == 0:
+        return 1.0
+    return diff / total
+
+
+def align_and_compute_pud(query_domains: dict[str, str],
+                           ref_domains: dict[str, str]) -> Optional[float]:
+    """Align concatenated domain sequences and compute PUD."""
+    # Build concatenated sequences for domains present in both
+    common = [d for d in DOMAIN_ORDER if d in query_domains and d in ref_domains]
+    if not common:
+        return None
+
+    query_concat = "".join(query_domains[d] for d in common)
+    ref_concat   = "".join(ref_domains[d]   for d in common)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        pair_fa = tmp / "pair.faa"
+        pair_fa.write_text(
+            f">query\n{textwrap.fill(query_concat, 60)}\n"
+            f">ref\n{textwrap.fill(ref_concat, 60)}\n"
+        )
+        cmd = [MAFFT_BIN, "--auto", "--quiet", str(pair_fa)]
+        result = _run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            return None
+
+        # Parse alignment
+        seqs = {}
+        cur_id = None
+        for line in result.stdout.splitlines():
+            if line.startswith(">"):
+                cur_id = line[1:].split()[0]
+                seqs[cur_id] = ""
+            elif cur_id:
+                seqs[cur_id] += line.strip()
+
+        if "query" not in seqs or "ref" not in seqs:
+            return None
+
+        return compute_pud(seqs["query"], seqs["ref"])
+
+
+def classify_by_pud(pud: float) -> str:
+    """Map a PUD value to a taxonomic rank label."""
+    if pud <= THRESHOLDS["species"]:
+        return "same_species"
+    elif pud <= THRESHOLDS["subgenus"]:
+        return "same_subgenus"
+    elif pud <= THRESHOLDS["genus"]:
+        return "same_genus"
+    elif pud <= THRESHOLDS["subfamily"]:
+        return "same_subfamily"
+    elif pud <= THRESHOLDS["family"]:
+        return "same_family"
+    else:
+        return "outside_family"
+
+
+def get_ref_taxonomy(accession: str) -> dict:
+    """Look up taxonomy for a reference accession."""
+    import sqlite3
+    if not TAX_DB.exists():
+        return {}
+    acc = accession.split(".")[0]
+    try:
+        with sqlite3.connect(str(TAX_DB)) as db:
+            db.row_factory = sqlite3.Row
+            row = db.execute(
+                "SELECT * FROM species WHERE species LIKE ? OR species LIKE ? LIMIT 1",
+                (f"%{acc}%", f"%{accession}%")
+            ).fetchone()
+            if row:
+                return dict(row)
+    except Exception:
+        pass
+    return {}
+
+
+def corona_classify_pud(genome_nt: str, top_n: int = 5) -> dict:
+    """
+    Full pipeline: nucleotide genome → PUD classification.
+
+    Returns:
+      {
+        "pp1ab_length": int,
+        "domains_found": list[str],
+        "top_hits": [{"accession": str, "description": str,
+                      "pud": float, "rank": str, "taxonomy": dict}],
+        "best_classification": {subgenus/genus/subfamily/species},
+        "method": "DEmARC_PUD",
+        "thresholds": {...}
+      }
+    """
+    # Step 1: translate
+    pp1ab = translate_orf1ab(genome_nt)
+    if not pp1ab:
+        return {"error": "Failed to translate ORF1ab (genome < 20kb or invalid sequence)"}
+
+    # Step 2: extract query domains
+    query_domains = extract_domains_by_hmm(pp1ab, "query")
+    if not query_domains:
+        query_domains = extract_domains_by_coords(pp1ab)
+    if not query_domains:
+        return {"error": "No domains extracted from ORF1ab"}
+
+    # Step 3: process reference sequences
+    if not REF_FASTA.exists():
+        return {"error": f"Reference FASTA not found: {REF_FASTA}"}
+
+    hits = []
+    for ref_rec in SeqIO.parse(str(REF_FASTA), "fasta"):
+        if len(ref_rec.seq) < 20000:
+            continue
+        ref_pp1ab = translate_orf1ab(str(ref_rec.seq))
+        if not ref_pp1ab:
+            continue
+        ref_domains = extract_domains_by_coords(ref_pp1ab)
+        pud = align_and_compute_pud(query_domains, ref_domains)
+        if pud is None:
+            continue
+        hits.append({
+            "accession": ref_rec.id,
+            "description": ref_rec.description,
+            "pud": round(pud, 4),
+            "pud_pct": round(pud * 100, 2),
+            "rank": classify_by_pud(pud),
+        })
+
+    if not hits:
+        return {"error": "No PUD computed against any reference"}
+
+    hits.sort(key=lambda x: x["pud"])
+    top = hits[:top_n]
+
+    # Step 4: determine best classification from closest hit
+    best = hits[0]
+    rank = best["rank"]
+
+    # Look up taxonomy for top hits
+    import sqlite3
+    if TAX_DB.exists():
+        with sqlite3.connect(str(TAX_DB)) as db:
+            db.row_factory = sqlite3.Row
+            for h in top:
+                acc = h["accession"].split(".")[0]
+                row = db.execute(
+                    "SELECT family, subfamily, genus, subgenus, species FROM species "
+                    "WHERE species LIKE ? LIMIT 1",
+                    (f"%{acc}%",)
+                ).fetchone()
+                if row:
+                    h["taxonomy"] = dict(row)
+                else:
+                    h["taxonomy"] = {}
+
+    best_tax = top[0].get("taxonomy", {})
+
+    return {
+        "pp1ab_length": len(pp1ab),
+        "domains_found": list(query_domains.keys()),
+        "domain_lengths": {k: len(v) for k, v in query_domains.items()},
+        "top_hits": top,
+        "best_hit": {
+            "accession": best["accession"],
+            "pud": best["pud"],
+            "pud_pct": best["pud_pct"],
+            "rank": rank,
+        },
+        "classification": {
+            "family": "Coronaviridae",
+            "subfamily": best_tax.get("subfamily") if rank in ("same_species", "same_subgenus", "same_genus", "same_subfamily") else "unknown",
+            "genus":    best_tax.get("genus")    if rank in ("same_species", "same_subgenus", "same_genus") else "unknown",
+            "subgenus": best_tax.get("subgenus") if rank in ("same_species", "same_subgenus") else "unknown",
+            "species":  best_tax.get("species")  if rank == "same_species" else "novel/uncertain",
+        },
+        "method": "DEmARC_PUD_5domains",
+        "thresholds": THRESHOLDS,
+        "note": (
+            "PUD thresholds from Ziebuhr et al. 2021 Table 4. "
+            "Domains: 3CLpro+NiRAN+RdRp+ZBD+HEL1 (concatenated aa)."
+        )
+    }

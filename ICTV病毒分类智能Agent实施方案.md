@@ -163,31 +163,104 @@
 | JSON查询 | `get_criteria` | ICTV分类标准检索 | 科名 + 分类级别 | 结构化标准（方法、阈值、区域） |
 | TF-IDF检索 | `search_ictv_docs` | ICTV原文段落搜索 | 自然语言查询 | 相关文本块 |
 | 物种列表 | `list_reference_species` | 列出指定科/属的MSL40物种列表 | 科名/属名 | 物种名列表 |
+| DEmARC PUD | `corona_pud_classify` | **Coronaviridae专用**：翻译ORF1ab→提取5个保守结构域→计算PUD→按Table 4阈值分配亚属/属/亚科 | 核苷酸基因组（≥20 kb） | 分类层级 + Top hits + PUD值 |
 
 ## 分类标准知识库
 
-### 已提取的32科分类标准
+### 分类标准完整性评估（32科）
 
-| 科名 | 种级标准方法 | 目标基因区域 | 数值阈值 |
-|------|-------------|-------------|----------|
-| Coronaviridae | PPD聚类 | replicase ORF1b | 无固定阈值（按属不同） |
-| Picornaviridae | aa identity + 系统发育 | P1, 2C, 3C, 3D | 属级：P1 >66%差异, 2C/3C/3D >64%差异 |
-| Paramyxoviridae | 遗传距离 | L蛋白（完整） | 亚科级：0.64-0.90 subst/site |
-| Flaviviridae | 系统发育 | NS5 RdRp | 无明确数值 |
-| Togaviridae | aa identity + 生态 | 全编码区 | 种级：≥10% aa差异 |
-| Caliciviridae | aa identity | VP1衣壳蛋白 | 属级：>60% aa差异 |
-| Papillomaviridae | nt identity | L1 ORF | 亚科<45% aa; 属<60% nt; 种<90% nt |
-| Polyomaviridae | nt identity | 全基因组 | 种级：>81% nt identity为同种 |
-| Paramyxoviridae | 遗传距离 | L蛋白 | 见上 |
-| Rhabdoviridae | nt/aa identity + 生态 | L蛋白, N蛋白 | 属级因属而异 |
-| Adenoviridae | 系统发育 + 生物学 | DNA polymerase, hexon | 无固定数值 |
-| Hantaviridae | 系统发育 + 生态 | L (RdRp), S (NP) | 无固定数值 |
-| Filoviridae | 遗传距离 + 生态 | L (RdRp), GP | 无固定数值 |
-| Arenaviridae | 系统发育 + 生态 | L (RdRp), S (NP) | 无固定数值 |
+当前`data/criteria.json`覆盖32个目标科，其中 **21科有明确数值阈值**，11科依赖系统发育/生物学标准无数值阈值。
+
+**有明确数值阈值的21科（可直接自动化分类）：**
+
+| 科名 | 种级方法 | 关键阈值 |
+|------|---------|---------|
+| Coronaviridae | DEmARC PUD（5结构域） | 物种 ≤7.5%; 亚属 ≤14.2%; 属 ≤36%; 亚科 ≤51% |
+| Picornaviridae | aa identity（按属） | P1: Enterovirus <30%差异，Hepatovirus <40% |
+| Paramyxoviridae | L蛋白遗传距离 | 分支长度 ≤0.03 sub/site（种级） |
+| Papillomaviridae | L1 ORF nt identity | 属 <60% nt; 种 <90% nt |
+| Polyomaviridae | 全基因组 nt identity | 种级 >81% nt |
+| Arteriviridae | RdRp aa identity | 属 <70% aa |
+| Parvoviridae | NS1 aa identity | 同种 ≥85% aa（4属统一阈值） |
+| Anelloviridae | ORF1 nt identity | >65% nt同种 |
+| Circoviridae | Rep aa identity | >80% aa同种 |
+| Hantaviridae | N蛋白 aa identity | 属 <7% aa差异 |
+| Nodaviridae | RNA2 nt identity | >80% nt同种 |
+| Sedoreoviridae | VP6 aa identity | Rotavirus: >53% aa |
+| Arenaviridae | S/L段 nt identity | S段 <80%、L段 <76%为不同种 |
+| Bornaviridae | PASC全基因组 | ≥72-75%同种 |
+| Phenuiviridae | RdRp aa identity | 属 <50% aa |
+| Rhabdoviridae | 按属（N/L蛋白） | Lyssavirus N基因 ≥80% nt同种 |
+| Filoviridae | PASC | <77%（种级阈值） |
+| Adenoviridae | DNA pol + hexon | pol差异 >10-15%分属 |
+| Peribunyaviridae | L蛋白 aa identity | Orthobunyavirus ≥96% aa同种 |
+| Flaviviridae | NS3/NS5B aa identity | Hepacivirus: NS3 <75%, NS5B <70%分种 |
+| Amnoonviridae | 基因组 nt identity | >80% nt同种 |
+
+**无明确数值阈值的11科（依赖系统发育/生物学标准）：**
+
+| 科名 | 主要原因 |
+|------|---------|
+| Caliciviridae | VP1序列分歧度与宿主/抗原性联合判定，无固定阈值 |
+| Hepeviridae | 亚型内多样性大，需结合宿主和系统发育，无固定阈值 |
+| Orthoherpesviridae | 大型DNA病毒，以基因组共线性+系统发育分群，无统一数值 |
+| Pneumoviridae | 物种少（仅5种），以系统发育+宿主特异性区分 |
+| Poxviridae | 双链DNA病毒，标准复杂（基因含量+系统发育），无单一阈值 |
+| Asfarviridae | 单科单属，近缘种少，标准基于比较基因组 |
+| Picobirnaviridae | 目前缺乏经过验证的数值阈值 |
+| Astroviridae | VP90/VP70 aa identity用于属级，但种级界定标准不统一 |
+| Nairoviridae | 综合系统发育+宿主范围，无数值阈值 |
+| Spinareoviridae | 分段基因组，各节段标准不一致 |
+| Togaviridae | 物种少，以系统发育分群为主 |
+
+### 属级种间界定标准（genus_criteria.json）
+
+对于在科级标准上需要属级细化的病毒科（如Picornaviridae、Paramyxoviridae、Rhabdoviridae等），提供`data/genus_criteria.json`：
+- **覆盖98个属**，通过`scripts/fetch_genus_criteria.py`从ICTV网站获取属级Report页面后解析
+- **52个属有明确数值阈值**，46个为单型属（无种间比较意义）
+- 可通过`backend/knowledge/criteria.py`的`get_genus_criteria(family, genus)`接口查询
+
+### Coronaviridae DEmARC PUD分类（专用子系统）
+
+Coronaviridae采用基于氨基酸PUD（Pairwise Uncorrected Distance）的DEmARC分类框架，实现亚属级分辨率。
+
+**5个保守复制酶结构域**（在pp1ab中的位置，基于SARS-CoV-2 MN908947）：
+| 结构域 | Nsp | aa坐标 | 大小 |
+|--------|-----|--------|------|
+| 3CLpro | Nsp5 | 3264-3569 | 306 aa |
+| NiRAN | Nsp12 N端 | 4393-4535 | 143 aa |
+| RdRp | Nsp12催化核心 | 4536-4932 | 397 aa |
+| ZBD | Nsp13锌指 | 5316-5443 | 128 aa |
+| HEL1 | Nsp13解旋酶 | 5444-5836 | 393 aa |
+
+**PUD阈值（Ziebuhr et al. 2021, Table 4）：**
+| 分类阶元 | PUD阈值 |
+|---------|--------|
+| 种 | ≤7.5% |
+| 亚属 | ≤14.2% |
+| 属 | ≤36.0% |
+| 亚科 | ≤51.0% |
+| 科 | ≤68.1% |
+
+**工具实现**（`backend/tools/corona_pud.py`）：
+1. 检测核糖体-1移码位点（TTTAAAC滑动序列）翻译ORF1ab产生pp1ab多蛋白
+2. 用HMMER3 HMM profiles（`data/hmm/CoV_5domains.hmm`）提取5个结构域，坐标缩放法兜底
+3. MAFFT比对 + 计算PUD，与59条参考序列逐一比较
+4. 按Table 4阈值划分分类阶元，查SQLite获取完整分类
+
+**HMM建库**（`scripts/build_corona_hmms.py`）：
+- 从59条冠状病毒参考序列提取各结构域种子序列
+- MAFFT多序列比对 → hmmbuild → hmmpress
+- 输出：`data/hmm/CoV_5domains.hmm`（可直接用于hmmsearch）
+
+**验证结果：**
+- SARS-CoV-2 vs SARS-CoV-1 (AY274119): PUD=3.5% → same_species ✓（均为*Severe acute respiratory syndrome-related coronavirus*）
+- SARS-CoV-2 vs 蝙蝠Beta冠状病毒: PUD=27-35% → same_genus ✓（均为Betacoronavirus属）
+- SARS-CoV-2 vs Alpha冠状病毒: PUD=45-60% → same_subfamily ✓（同属Orthocoronavirinae）
 
 ### LLM自动提取流程
 
-对于未手动整理的18个科，提供`scripts/extract_criteria.py`脚本：
+对于未手动整理的科，提供`scripts/extract_criteria.py`脚本：
 - 输入：`ictv_txt/*.txt`（ICTV Report Chapter纯文本）
 - 过程：调用Claude API，使用专用系统提示词提取结构化JSON
 - 输出：追加到`data/criteria.json`
@@ -286,15 +359,16 @@ Step 6: Agent综合判断:
 ictv_agent/
 ├── backend/
 │   ├── main.py                  # FastAPI应用，API路由定义
-│   ├── agent.py                 # LLM ReAct Agent（Claude tool_use循环）
+│   ├── agent.py                 # LLM ReAct Agent（Claude tool_use循环，9个工具）
 │   ├── models.py                # Pydantic数据模型
 │   ├── tools/
 │   │   ├── blast.py             # BLAST/DIAMOND搜索封装
 │   │   ├── hmmer.py             # HMMER区域提取封装
 │   │   ├── alignment.py         # MAFFT比对 + pairwise identity计算
-│   │   └── taxonomy.py          # SQLite分类查询
+│   │   ├── taxonomy.py          # SQLite分类查询
+│   │   └── corona_pud.py        # DEmARC PUD分类流水线（Coronaviridae专用）
 │   └── knowledge/
-│       ├── criteria.py          # 分类标准知识库加载/查询
+│       ├── criteria.py          # 分类标准知识库加载/查询（含属级接口）
 │       └── rag.py               # TF-IDF文档检索（32科ICTV文本）
 ├── frontend/
 │   └── index.html               # 单页Web界面（Bootstrap 5 + SSE）
@@ -303,13 +377,16 @@ ictv_agent/
 │   ├── build_taxonomy_db.py     # MSL40 Excel → SQLite
 │   ├── download_reference_seqs.py # VMR accession → NCBI FASTA
 │   ├── build_blast_db.py        # 构建BLAST/DIAMOND数据库
-│   └── build_vectordb.py        # 构建文本向量索引（可选）
+│   ├── fetch_genus_criteria.py  # 下载ICTV属级Report页面并解析
+│   └── build_corona_hmms.py     # 构建Coronaviridae 5结构域HMM profiles
 ├── data/
 │   ├── taxonomy.db              # MSL40分类数据库（16,213物种）
-│   ├── criteria.json            # 结构化分类标准（32科）
+│   ├── criteria.json            # 结构化分类标准（32科；21科有数值阈值）
+│   ├── genus_criteria.json      # 属级种间界定标准（98属；52属有数值阈值）
+│   ├── hmm/
+│   │   └── CoV_5domains.hmm    # HMMER3 HMM profiles（3CLpro/NiRAN/RdRp/ZBD/HEL1）
 │   ├── references/              # 参考序列FASTA（按科组织）
-│   ├── db/                      # BLAST数据库文件
-│   └── vectordb/                # 文本向量索引（可选）
+│   └── db/                      # BLAST数据库文件
 ├── requirements.txt
 ├── run.sh                       # 一键启动脚本（含默认API配置）
 ├── stop.sh                      # 关闭服务脚本
@@ -414,15 +491,19 @@ bash stop.sh 9000    # 或指定端口
 
 - [x] 分类法数据库构建（MSL40 → SQLite, 16,213物种）
 - [x] ICTV文档下载与清洗（32科HTML/TXT）
-- [x] 分类标准知识库构建（32科结构化JSON）
+- [x] 分类标准知识库构建（32科结构化JSON；21科有数值阈值，11科暂无）
+- [x] 属级分类标准扩展（genus_criteria.json；98属，52属有数值阈值）
+- [x] 属级ICTV页面抓取（fetch_genus_criteria.py；98成功，12失败）
 - [x] RAG文档检索（32科, 1,736块, TF-IDF）
 - [x] 工具层实现（BLAST、HMMER、MAFFT、taxonomy查询、blast_and_compare一体化）
-- [x] LLM ReAct Agent实现（Anthropic兼容API tool_use, 8工具, 20步循环）
+- [x] **Coronaviridae DEmARC PUD子系统**（corona_pud.py；亚属级分辨率）
+- [x] **Coronaviridae HMM profiles**（build_corona_hmms.py；5结构域，59参考序列）
+- [x] LLM ReAct Agent实现（Anthropic兼容API tool_use, **9工具**, 20步循环）
 - [x] FastAPI后端（所有端点已测试通过，异步不阻塞事件循环）
 - [x] Web前端（FASTA上传 + SSE实时推理展示 + family_hint）
 - [x] Coronaviridae参考序列下载（59条）+ BLAST数据库构建
 - [x] 端到端分类测试（Coronaviridae云南样本，BLAST命中 + 全局pairwise identity计算通过）
-- [ ] 其余31科参考序列下载与BLAST库扩展
+- [ ] 其余31科参考序列下载与BLAST库扩展（仅Coronaviridae完成）
 - [ ] 与EPA-ng结果交叉验证
 - [ ] 多科测试与分类准确率评估
 
@@ -478,6 +559,29 @@ Bioinformatics, Nucleic Acids Research, Virus Evolution, PLOS Computational Biol
 ---
 
 # 进展日志
+
+## 2026年4月7日
+
+分类标准知识库全面升级 + Coronaviridae亚属级DEmARC PUD子系统完成：
+
+**知识库扩展：**
+- `criteria.json` 升级：有明确数值阈值的科从6个增加到**21个**。新增标准覆盖Paramyxoviridae（L蛋白分支长度≤0.03）、Flaviviridae（NS3/NS5B aa identity）、Arenaviridae（S/L段nt identity）、Bornaviridae（PASC 72-75%）、Parvoviridae（NS1 aa identity ≥85%）、Rhabdoviridae（按属，Lyssavirus N基因≥80%）、Peribunyaviridae、Adenoviridae、Filoviridae等
+- 新增 `data/genus_criteria.json`：98个属的种间界定标准，52个属有数值阈值，通过`scripts/fetch_genus_criteria.py`从ICTV网站抓取解析
+- `backend/knowledge/criteria.py` 新增 `get_genus_criteria()` 接口，`get_demarcation_summary()` 支持可选 `genus` 参数
+
+**Coronaviridae DEmARC PUD子系统：**
+- `scripts/build_corona_hmms.py`：从59条参考序列建立5个复制酶结构域的HMMER3 HMM profiles（输出 `data/hmm/CoV_5domains.hmm`）
+- `backend/tools/corona_pud.py`：完整DEmARC PUD分类流水线
+  - 自动检测ORF1a起始密码子（验证长ORF >3000 aa）和核糖体-1移码位点（TTTAAAC）
+  - HMM提取5个结构域（坐标缩放法兜底）
+  - MAFFT比对 + PUD计算 + Table 4阈值分类
+- `backend/agent.py`：注册第9个工具 `corona_pud_classify`，系统提示词更新
+- **验证通过**：SARS-CoV-2 vs SARS-CoV-1 PUD=3.5% (same_species)，Beta vs Alpha CoV PUD=45-60% (same_subfamily)，Beta CoV属内 PUD=27-35% (same_genus)
+
+**已知5个科无明确标准的原因分析：**
+- Caliciviridae/Hepeviridae：宿主范围和抗原性联合判定，无单一数值标准
+- Orthoherpesviridae：大型dsDNA病毒，以基因组共线性+系统发育分群
+- Pneumoviridae/Poxviridae：物种少（5种/100+种），标准涉及多维度生物学特征
 
 ## 2026年3月30日
 
