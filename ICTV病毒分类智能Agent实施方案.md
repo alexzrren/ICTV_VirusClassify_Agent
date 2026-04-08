@@ -168,6 +168,7 @@
 | TF-IDF检索 | `search_ictv_docs` | ICTV原文段落搜索 | 自然语言查询 | 相关文本块 |
 | 物种列表 | `list_reference_species` | 列出指定科/属的MSL40物种列表 | 科名/属名 | 物种名列表 |
 | DEmARC PUD | `corona_pud_classify` | **Coronaviridae专用**：翻译ORF1ab→提取5个保守结构域→计算PUD→按Table 4阈值分配亚属/属/亚科 | 核苷酸基因组（≥20 kb） | 分类层级 + Top hits + PUD值 |
+| HMM区域提取 | `extract_target_region` | **通用多科工具**：用各科专用HMM profile从基因组中提取ICTV标准指定的目标蛋白区域（L蛋白、VP1、NS5 RdRp等），供后续pairwise identity比较 | 核苷酸基因组 + 科名 | 各区域蛋白序列 + 长度 |
 
 ## 分类标准知识库
 
@@ -356,14 +357,11 @@ Step 6: Agent综合判断:
 | ICTV Report Chapters | ictv.global/report/chapter/ | 32科HTML/TXT | ✅ 已下载并清洗 |
 | VMR (Virus Metadata Resource) | VMR_MSL40.v2.20251013.xlsx | GenBank accession列表 | ✅ 已获取 |
 | HMM Profiles (RdRp) | 自建 | 32科 | ✅ 已有（ictv_classifier共享） |
-| 分类标准知识库 | 手动+LLM提取 | 14科结构化JSON | ✅ 已构建 |
-
-## 待构建数据
-
-| 数据 | 构建方式 | 预计规模 | 脚本 | 状态 |
-|------|----------|----------|------|------|
-| 参考序列FASTA | 从VMR accession下载NCBI | ~2-5 GB | `scripts/download_reference_seqs.py` | ⚠️ Coronaviridae已下载（59条），其余待下载 |
-| BLAST核酸数据库 | makeblastdb | ~500 MB | `scripts/build_blast_db.py` | ⚠️ 已构建（仅含Coronaviridae），需扩展 |
+| 分类标准知识库 | 手动+LLM提取 | 32科结构化JSON | ✅ 已构建（21科有数值阈值） |
+| 参考序列FASTA | 从ictv_classifier复制 | 34科6,476条 | 从`ictv_classifier/reference/`复制 | ✅ 全部34科已就位 |
+| BLAST核酸数据库 | makeblastdb | 34科合并 | `scripts/build_blast_db.py` | ✅ 已构建（6,476条序列） |
+| 各科HMM Profiles | tblastn+MAFFT+hmmbuild | 24科30个区域 | `scripts/build_family_hmms.py` | ✅ 已构建 |
+| HMM目标配置 | 手动整理 | 24科 | `data/hmm_targets.json` | ✅ 已创建 |
 
 ---
 
@@ -373,12 +371,12 @@ Step 6: Agent综合判断:
 ictv_agent/
 ├── backend/
 │   ├── main.py                  # FastAPI应用，API路由定义（含缓存和历史端点）
-│   ├── agent.py                 # LLM ReAct Agent（Claude tool_use循环，9个工具）
+│   ├── agent.py                 # LLM ReAct Agent（Claude tool_use循环，10个工具）
 │   ├── models.py                # Pydantic数据模型
 │   ├── cache.py                 # SQLite结果缓存（序列SHA-256去重，历史记录查询）
 │   ├── tools/
 │   │   ├── blast.py             # BLAST/DIAMOND搜索封装
-│   │   ├── hmmer.py             # HMMER区域提取封装
+│   │   ├── hmmer.py             # HMMER区域提取封装（24科HMM自动发现 + 多区域提取）
 │   │   ├── alignment.py         # MAFFT比对 + pairwise identity计算
 │   │   ├── taxonomy.py          # SQLite分类查询
 │   │   └── corona_pud.py        # DEmARC PUD分类流水线（Coronaviridae专用）
@@ -393,16 +391,19 @@ ictv_agent/
 │   ├── download_reference_seqs.py # VMR accession → NCBI FASTA
 │   ├── build_blast_db.py        # 构建BLAST/DIAMOND数据库
 │   ├── fetch_genus_criteria.py  # 下载ICTV属级Report页面并解析
-│   └── build_corona_hmms.py     # 构建Coronaviridae 5结构域HMM profiles
+│   ├── build_corona_hmms.py     # 构建Coronaviridae 5结构域HMM profiles
+│   └── build_family_hmms.py     # 通用多科HMM构建（24科30区域，tblastn+MAFFT+hmmbuild）
 ├── data/
 │   ├── taxonomy.db              # MSL40分类数据库（16,213物种）
 │   ├── criteria.json            # 结构化分类标准（32科；21科有数值阈值）
 │   ├── genus_criteria.json      # 属级种间界定标准（98属；52属有数值阈值）
 │   ├── cache.db                 # 分类结果缓存（自动创建）
+│   ├── hmm_targets.json          # 各科HMM目标区域配置（24科30区域）
 │   ├── hmm/
-│   │   └── CoV_5domains.hmm    # HMMER3 HMM profiles（3CLpro/NiRAN/RdRp/ZBD/HEL1）
-│   ├── references/              # 参考序列FASTA（按科组织）
-│   └── db/                      # BLAST数据库文件
+│   │   ├── CoV_5domains.hmm     # Coronaviridae 5结构域HMM
+│   │   └── {Family}_targets.hmm # 各科HMM profiles（24科，由build_family_hmms.py生成）
+│   ├── references/              # 参考序列FASTA（34科，按科组织）
+│   └── db/                      # BLAST数据库文件（34科6,476条合并）
 ├── requirements.txt
 ├── run.sh                       # 一键启动脚本（含默认API配置）
 ├── stop.sh                      # 关闭服务脚本
@@ -514,7 +515,7 @@ bash stop.sh 9000    # 或指定端口
 - [x] 工具层实现（BLAST、HMMER、MAFFT、taxonomy查询、blast_and_compare一体化）
 - [x] **Coronaviridae DEmARC PUD子系统**（corona_pud.py；亚属级分辨率）
 - [x] **Coronaviridae HMM profiles**（build_corona_hmms.py；5结构域，59参考序列）
-- [x] LLM ReAct Agent实现（Anthropic兼容API tool_use, **9工具**, 20步循环）
+- [x] LLM ReAct Agent实现（Anthropic兼容API tool_use, **10工具**, 20步循环）
 - [x] FastAPI后端（所有端点已测试通过，异步不阻塞事件循环）
 - [x] Web前端（FASTA上传 + SSE实时推理展示 + family_hint + **历史面板**）
 - [x] Coronaviridae参考序列下载（59条）+ BLAST数据库构建
@@ -523,9 +524,11 @@ bash stop.sh 9000    # 或指定端口
 - [x] **坐标缩放为主的结构域提取**（解决HMM profile过宽问题，query/reference对称）
 - [x] **结果缓存 + 历史记录**（SQLite，序列SHA-256去重，前端历史面板）
 - [x] **Reasoning Summary修复**（前端始终显示，后端自动生成结构化摘要）
-- [ ] 其余31科参考序列下载与BLAST库扩展（仅Coronaviridae完成）
+- [x] **全部34科参考序列导入 + BLAST库重建**（6,476条序列，从ictv_classifier复制）
+- [x] **24科HMM Profile库构建**（30个目标蛋白区域，通用build_family_hmms.py脚本）
+- [x] **Agent新增extract_target_region工具**（第10个工具，多科HMM蛋白提取）
+- [ ] 多科端到端测试与分类准确率评估
 - [ ] 与EPA-ng结果交叉验证
-- [ ] 多科测试与分类准确率评估
 
 ---
 
@@ -579,6 +582,48 @@ Bioinformatics, Nucleic Acids Research, Virus Evolution, PLOS Computational Biol
 ---
 
 # 进展日志
+
+## 2026年4月8日（第二次）
+
+**全科扩展：34科参考序列 + 24科HMM Profile库 + Agent第10个工具**
+
+**1. 参考序列全科导入**
+- 从`ictv_classifier/reference/`复制34科共6,476条参考序列到`data/references/`
+- 重建BLAST核酸数据库（`makeblastdb`，34科合并）
+- 无需NCBI联网下载，全部本地已有
+
+**2. 通用HMM构建系统**
+- 新增`data/hmm_targets.json`：24科30个目标蛋白区域配置（包括L蛋白、VP1、NS3、NS5 RdRp、DNA聚合酶、N蛋白、L1 ORF、NS1/Rep、3D聚合酶、P1衣壳等）
+- 新增`scripts/build_family_hmms.py`（~300行）：通用HMM构建脚本
+  - 算法：从参考FASTA取种子ORF → tblastn搜索所有参考序列提取同源蛋白 → MAFFT比对 → hmmbuild
+  - 支持单科构建（`--family`）和全部构建，`--dry-run`预览模式
+  - MAX_SEEDS=80防止过大科（Rhabdoviridae 654条）构建过慢
+- 全部24科30个HMM region构建成功，输出`data/hmm/{Family}_targets.hmm`
+
+**覆盖的科和目标区域：**
+
+| 类型 | 科 | 目标蛋白 | 种子数 |
+|------|---|---------|-------|
+| RNA（L蛋白） | Paramyxoviridae, Rhabdoviridae, Peribunyaviridae, Pneumoviridae, Filoviridae, Bornaviridae | L protein | 4-80 |
+| RNA（RdRp） | Phenuiviridae, Nairoviridae, Hantaviridae, Arenaviridae, Sedoreoviridae, Spinareoviridae | L/RdRp | 5-80 |
+| RNA（多区域） | Flaviviridae (NS3+NS5), Picornaviridae (P1+3D), Rhabdoviridae (L+N) | 多蛋白 | 21-80 |
+| RNA（其他） | Caliciviridae (VP1), Togaviridae (nsP4) | 衣壳/RdRp | 25-52 |
+| DNA | Papillomaviridae (L1), Adenoviridae (DNA pol), Orthoherpesviridae (DNA pol), Polyomaviridae (VP1+LTAg) | 结构/复制蛋白 | 4-80 |
+| ssDNA | Anelloviridae (ORF1), Circoviridae (Rep), Parvoviridae (NS1) | 复制蛋白 | 26-80 |
+| 其他 | Hepeviridae (ORF1) | 非结构蛋白 | 4 |
+
+**3. Agent集成**
+- `backend/tools/hmmer.py`重构：
+  - `_resolve_hmm_path()`：自动查找各科HMM profile（`{Family}_targets.hmm` → `CoV_5domains.hmm` → legacy RdRp）
+  - `extract_all_regions()`：多区域提取，返回`{region: protein_seq}`字典
+  - `list_available_hmms()`：列出所有可用HMM及其区域
+  - `_run_getorf()`：修复EMBOSS getorf环境变量问题
+- `backend/agent.py`：新增第10个工具`extract_target_region`，系统提示词增加HMM区域提取指导
+- 序列自动注入：`extract_target_region`的`genome_nt`字段与`corona_pud_classify`同样自动注入完整序列
+
+**验证**：Paramyxoviridae L蛋白（1600 aa）、Flaviviridae NS3+NS5 RdRp（1959 aa）、Papillomaviridae L1 ORF（642 aa）均成功提取。
+
+---
 
 ## 2026年4月8日
 
