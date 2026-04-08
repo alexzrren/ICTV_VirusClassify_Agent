@@ -91,13 +91,17 @@
 - **交互方式**：
   - FASTA文本框输入或文件上传
   - 提交后通过Server-Sent Events（SSE）实时展示Agent推理步骤
-  - 结果展示：分类层级（彩色标签）+ 使用的ICTV标准 + 计算数值 + 置信度
+  - 结果展示：分类层级（彩色标签）+ 使用的ICTV标准 + 计算数值 + 置信度 + Reasoning Summary
+  - 历史面板：显示已缓存的分类记录，点击可直接加载结果
+  - 重复序列自动识别：相同序列（忽略FASTA header差异）直接返回缓存结果
 - **API端点**：
-  - `POST /classify` — 提交FASTA序列，返回job_id
+  - `POST /classify` — 提交FASTA序列，返回job_id（自动查缓存，命中则即时返回`cached: true`）
   - `GET /stream/{job_id}` — SSE实时推理步骤
   - `GET /result/{job_id}` — 获取最终分类结果
   - `GET /family/{name}` — 查询某科的分类标准
   - `GET /species?q=` — MSL物种分类查询
+  - `GET /history?limit=20` — 获取最近的缓存分类记录
+  - `GET /cache/{seq_hash}` — 按序列哈希获取缓存结果
 
 ### LLM推理引擎
 
@@ -243,23 +247,30 @@ Coronaviridae采用基于氨基酸PUD（Pairwise Uncorrected Distance）的DEmAR
 | 科 | ≤68.1% |
 
 **工具实现**（`backend/tools/corona_pud.py`）：
-1. 检测核糖体-1移码位点：在ORF1a内枚举所有 `TTTAAAC` 候选位置（搜索窗口 ORF1a起始+8000 至 +20000 nt），对每个候选验证-1框架的ORF1b翻译长度（>1500 aa），选取产生最长ORF1b的位置作为真实移码位点，翻译 pp1ab 多蛋白
-2. 用HMMER3 HMM profiles（`data/hmm/CoV_5domains.hmm`）提取5个结构域，坐标缩放法兜底
-3. MAFFT比对 + 计算PUD，与59条参考序列逐一比较
-4. 按Table 4阈值划分分类阶元，查SQLite获取完整分类
+1. **基因组方向检测**（`orient_genome()`）：扫描6个reading frame（正链3个 + 反向互补链3个），找最长无终止密码子区��（即ORF1a），一步确��正确链方向��ORF1a大致位置。解决宏基因组contig���能以反向互补方向组装的问题
+2. **ORF1a起始定位**（`find_orf1a_start()`）���在`orient_genome`提示位置附近搜索ATG起始密码子，不再限制于基因组前1000 nt，支持5'截断的contig
+3. **移码位点检测**（`find_frameshift_site()`）：在ORF1a内枚举所有 `TTTAAAC` 候选位置（搜索窗口 ORF1a起始+8000 至 +20000 nt），对每个候选验证-1框架的ORF1b翻译长度（>1500 aa），选取产生最长ORF1b的位置作为真实移码位点
+4. **结构域提取**：以坐标缩放法为主（`extract_domains_by_coords`，基于pp1ab长度��SARS-CoV-2的比例缩放5个结构域坐标），HMM搜��为辅（仅当HMM结果大小更接近���期时才替换）。query和reference统一使用相同提取方法，避免不对称性。HMM结果有大小验���（拒绝>2x预期大小的hit）
+5. MAFFT比对 + 计算PUD，与59条参考序列逐一比较
+6. 按Table 4阈值划分分类阶元，查SQLite获取完整分类
 
-> **设计说明**：早期版本仅取搜索区间第一个 `TTTAAAC` 匹配，对部分冠状病毒（如SARS-CoV-1）会命中非真实移码位点，导致pp1ab翻译错误、PUD虚高（实测曾出现79%，远超科级阈值68.1%）。验证ORF1b长度的改进使移码位点检测对所有 Orthocoronavirinae 均稳定正确。
+> **设计演变**：
+> - v1���硬编码SARS-CoV-2移码位点坐标 → 对其他冠状病毒失效
+> - v2：取搜索区间第一个 `TTTAAAC` → SARS-CoV-1命中假阳性位点，PUD虚高79%
+> - v3：枚举所有TTTAAAC + ORF1b长��验证 → 解决假阳性，但仍假设正向链
+> - **v4（当前）**：ORF分析自动检测链方向 + 坐标缩放为主的结构域提取 → 支持宏基因组反向互补contig，全部4条测试contig（含2条revcomp）均成功��取5/5结构域
 
 **HMM建库**（`scripts/build_corona_hmms.py`）：
-- 从59条冠状病毒参考序列提取各结构域种子序列
-- MAFFT多序列比对 → hmmbuild → hmmpress
+- 使用`corona_pud.translate_orf1ab()`自动检测���条参考序列的移码位点（而非硬编码SARS-CoV-2坐标），坐标缩放法提取结构域种子序列
+- 58条种子序列/结构域 → MAFFT多序列比对 → hmmbuild → hmmpress
 - 输出：`data/hmm/CoV_5domains.hmm`（可直接用于hmmsearch）
 
 **验证结果：**
-- SARS-CoV-1 (AY274119) vs 自身: PUD=3.8% → same_species ✓
-- SARS-CoV-2 (MN908947) vs SARS-CoV-1 (AY274119): PUD=6.2% → same_species ✓（均为*Severe acute respiratory syndrome-related coronavirus*，同属 Sarbecovirus 亚属）
+- SARS-CoV-1 (AY274119) vs 自身: PUD=0.0% → same_species ✓
+- SARS-CoV-2 (MN908947) vs SARS-CoV-1 (AY274119): PUD=3.47% → same_species ✓（均为*Severe acute respiratory syndrome-related coronavirus*，同属 Sarbecovirus 亚属）
 - SARS-CoV-2 vs 蝙蝠Beta冠状病毒: PUD=27-35% → same_genus ✓（均为Betacoronavirus属）
 - SARS-CoV-2 vs Alpha冠状病毒: PUD=45-60% → same_subfamily ✓（同属Orthocoronavirinae）
+- 云南啮齿动物宏基因组contig（含2条反向互补）：4/4成功分类，PUD=0.73%-30.76%
 
 ### LLM自动提取流程
 
@@ -361,9 +372,10 @@ Step 6: Agent综合判断:
 ```
 ictv_agent/
 ├── backend/
-│   ├── main.py                  # FastAPI应用，API路由定义
+│   ├── main.py                  # FastAPI应用，API路由定义（含缓存和历史端点）
 │   ├── agent.py                 # LLM ReAct Agent（Claude tool_use循环，9个工具）
 │   ├── models.py                # Pydantic数据模型
+│   ├── cache.py                 # SQLite结果缓存（序列SHA-256去重，历史记录查询）
 │   ├── tools/
 │   │   ├── blast.py             # BLAST/DIAMOND搜索封装
 │   │   ├── hmmer.py             # HMMER区域提取封装
@@ -374,7 +386,7 @@ ictv_agent/
 │       ├── criteria.py          # 分类标准知识库加载/查询（含属级接口）
 │       └── rag.py               # TF-IDF文档检索（32科ICTV文本）
 ├── frontend/
-│   └── index.html               # 单页Web界面（Bootstrap 5 + SSE）
+│   └── index.html               # 单页Web界面（Bootstrap 5 + SSE + 历史面板）
 ├── scripts/
 │   ├── extract_criteria.py      # LLM批量提取分类标准
 │   ├── build_taxonomy_db.py     # MSL40 Excel → SQLite
@@ -386,6 +398,7 @@ ictv_agent/
 │   ├── taxonomy.db              # MSL40分类数据库（16,213物种）
 │   ├── criteria.json            # 结构化分类标准（32科；21科有数值阈值）
 │   ├── genus_criteria.json      # 属级种间界定标准（98属；52属有数值阈值）
+│   ├── cache.db                 # 分类结果缓存（自动创建）
 │   ├── hmm/
 │   │   └── CoV_5domains.hmm    # HMMER3 HMM profiles（3CLpro/NiRAN/RdRp/ZBD/HEL1）
 │   ├── references/              # 参考序列FASTA（按科组织）
@@ -503,9 +516,13 @@ bash stop.sh 9000    # 或指定端口
 - [x] **Coronaviridae HMM profiles**（build_corona_hmms.py；5结构域，59参考序列）
 - [x] LLM ReAct Agent实现（Anthropic兼容API tool_use, **9工具**, 20步循环）
 - [x] FastAPI后端（所有端点已测试通过，异步不阻塞事件循环）
-- [x] Web前端（FASTA上传 + SSE实时推理展示 + family_hint）
+- [x] Web前端（FASTA上传 + SSE实时推理展示 + family_hint + **历史面板**）
 - [x] Coronaviridae参考序列下载（59条）+ BLAST数据库构建
 - [x] 端到端分类测试（Coronaviridae云南样本，BLAST命中 + 全局pairwise identity计算通过）
+- [x] **ORF分析自动链方向检测**（支持反向互补宏基因组contig）
+- [x] **坐标缩放为主的结构域提取**（解决HMM profile过宽问题，query/reference对称）
+- [x] **结果缓存 + 历史记录**（SQLite，序列SHA-256去重，前端历史面板）
+- [x] **Reasoning Summary修复**（前端始终显示，后端自动生成结构化摘要）
 - [ ] 其余31科参考序列下载与BLAST库扩展（仅Coronaviridae完成）
 - [ ] 与EPA-ng结果交叉验证
 - [ ] 多科测试与分类准确率评估
@@ -562,6 +579,41 @@ Bioinformatics, Nucleic Acids Research, Virus Evolution, PLOS Computational Biol
 ---
 
 # 进展日志
+
+## 2026年4月8日
+
+**三项重大改进：ORF方向检测 + 结构域提取重构 + 结果缓存/历史**
+
+**1. 基因组方向自动检测（`orient_genome()`）**
+
+问题：宏基因组contig可能以反向互补方向组装，`translate_orf1ab`只检查正向链，导致pp1ab翻译失败（仅26-77 aa），domain extraction返回空，最终PUD分类失败。
+
+修复：新增`orient_genome()`函数，扫描6个reading frame（3 forward + 3 revcomp），利用冠状病毒ORF1a是基因组最长ORF（>4000 aa）的特性，找到包含最长stop-free区域的链方向。`find_orf1a_start()`改为从longest-ORF位置附近搜索ATG，支持5'截断contig。
+
+验证：4条云南啮齿动物冠状病毒contig（2条正向、2条反向互补），全部成功提取5/5结构域并完成PUD分类。
+
+**2. 结构域提取策略重构**
+
+问题：HMM profiles对RdRp/HEL1匹配区域远大于预期（1208 vs 397 aa），query用HMM、reference用坐标缩放的不对称提取导致PUD不准确。根因是`build_corona_hmms.py`用硬编码SARS-CoV-2坐标翻译所有参考序列的ORF1ab。
+
+修复：
+- `build_corona_hmms.py`：改用`corona_pud.translate_orf1ab()`自动检测移码位点，坐标缩放法提取种子序列
+- `corona_pud.py`：以坐标缩放为主（`extract_domains_by_coords`），HMM仅作为refinement（只在HMM域大小更接近预期时替换）。query/reference统一用相同方法。HMM结果加入大小验证（拒绝>2x预期的hit）
+
+**3. 结果缓存与历史记录**
+
+- 新增`backend/cache.py`：SQLite数据库，以清洗后序列（去header、去空白、大写）的SHA-256为key缓存ClassifyResult
+- `POST /classify`先查缓存，相同序列（即使FASTA header不同）直接返回，跳过Agent推理
+- 新增`GET /history`和`GET /cache/{hash}`端点
+- 前端新增History面板，显示最近分类记录，点击可加载缓存结果
+- 缓存命中时显示蓝色"(cached)"标识
+
+**4. Reasoning Summary修复**
+
+- 前端：去掉"有SSE steps就清空reasoning"的逻辑，始终显示；新增`buildReasoningSummary()`从taxonomy/evidence自动生成摘要作为fallback
+- 后端：`_build_result_from_logs`生成结构化reasoning（如"Identified as Coronaviridae. global pairwise identity 85%..."）
+
+---
 
 ## 2026年4月7日（第二次）
 
