@@ -131,3 +131,29 @@ def cache_get_by_hash(h: str) -> Optional[ClassifyResult]:
     except Exception:
         pass
     return None
+
+
+def cache_delete(h: str) -> bool:
+    """Delete a single cached result by sequence hash."""
+    try:
+        conn = _connect()
+        conn.execute("DELETE FROM cache WHERE seq_hash = ?", (h,))
+        conn.commit()
+        changed = conn.total_changes
+        conn.close()
+        return changed > 0
+    except Exception:
+        return False
+
+
+def cache_clear() -> int:
+    """Delete all cached results. Returns number of entries deleted."""
+    try:
+        conn = _connect()
+        count = conn.execute("SELECT COUNT(*) FROM cache").fetchone()[0]
+        conn.execute("DELETE FROM cache")
+        conn.commit()
+        conn.close()
+        return count
+    except Exception:
+        return 0

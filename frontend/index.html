@@ -100,7 +100,10 @@
       <div class="card shadow-sm mt-3">
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
           <span class="fw-semibold">History</span>
-          <button class="btn btn-sm btn-outline-secondary" onclick="loadHistory()">Refresh</button>
+          <div>
+            <button class="btn btn-sm btn-outline-danger me-1" onclick="clearAllHistory()">Clear All</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="loadHistory()">Refresh</button>
+          </div>
         </div>
         <div class="card-body p-2">
           <div id="history-list" class="small" style="max-height:250px;overflow-y:auto">
@@ -376,10 +379,14 @@ async function loadHistory() {
     el.innerHTML = items.map(h => {
       const tax = [h.family, h.genus, h.species].filter(Boolean).join(' > ') || '—';
       const time = h.created_at ? new Date(h.created_at).toLocaleString() : '';
-      return `<div class="history-item" onclick="loadCached('${h.seq_hash}')">
-        <div class="hi-id">${escHtml(h.query_id || '?')}</div>
-        <div class="hi-tax">${escHtml(tax)}</div>
-        <div class="hi-time">${escHtml(time)} &middot; ${h.confidence || '?'}</div>
+      return `<div class="history-item d-flex justify-content-between align-items-start">
+        <div style="flex:1;cursor:pointer" onclick="loadCached('${h.seq_hash}')">
+          <div class="hi-id">${escHtml(h.query_id || '?')}</div>
+          <div class="hi-tax">${escHtml(tax)}</div>
+          <div class="hi-time">${escHtml(time)} &middot; ${h.confidence || '?'}</div>
+        </div>
+        <button class="btn btn-sm btn-outline-danger border-0 p-0 ms-1" style="font-size:0.7rem;line-height:1"
+          onclick="event.stopPropagation();deleteHistory('${h.seq_hash}')" title="Delete">&times;</button>
       </div>`;
     }).join('');
   } catch(e) {
@@ -401,6 +408,21 @@ async function loadCached(hash) {
     appendStep(`[ERROR] ${e}`, 'error');
     setStatus('Error', 'danger');
   }
+}
+
+async function deleteHistory(hash) {
+  try {
+    await fetch(`${API}/cache/${hash}`, {method: 'DELETE'});
+    loadHistory();
+  } catch(e) {}
+}
+
+async function clearAllHistory() {
+  if (!confirm('Delete all cached classification results?')) return;
+  try {
+    await fetch(`${API}/cache`, {method: 'DELETE'});
+    loadHistory();
+  } catch(e) {}
 }
 
 function escHtml(s) {

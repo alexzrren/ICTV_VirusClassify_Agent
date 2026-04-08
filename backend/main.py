@@ -24,7 +24,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .agent import classify_sequence
-from .cache import cache_get, cache_put, cache_history, cache_get_by_hash
+from .cache import cache_get, cache_put, cache_history, cache_get_by_hash, cache_delete, cache_clear
 from .knowledge.criteria import get_criteria, list_families, get_demarcation_summary
 from .models import ClassifyRequest, ClassifyResult, JobResponse, JobStatus
 from .tools.taxonomy import family_summary, lookup_species, search_any_level
@@ -242,6 +242,21 @@ def get_cached_result(seq_hash: str):
     if not result:
         raise HTTPException(status_code=404, detail="Not found in cache")
     return result.model_dump()
+
+
+@app.delete("/cache/{seq_hash}")
+def delete_cached_result(seq_hash: str):
+    """Delete a single cached result."""
+    if cache_delete(seq_hash):
+        return {"deleted": seq_hash}
+    raise HTTPException(status_code=404, detail="Not found in cache")
+
+
+@app.delete("/cache")
+def clear_all_cache():
+    """Delete all cached results."""
+    count = cache_clear()
+    return {"deleted_count": count}
 
 
 # ── Serve frontend ───────────────────────────────────────────────────────────
