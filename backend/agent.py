@@ -721,10 +721,17 @@ def _build_result_from_logs(
             except (json.JSONDecodeError, KeyError):
                 pass
 
-    # Extract step text for reasoning
-    for log_line in step_logs:
-        if log_line.startswith("[Step"):
-            reasoning_parts.append(log_line)
+    # Build a concise reasoning summary from structured data
+    summary_parts = []
+    if taxonomy.family:
+        summary_parts.append(f"Identified as {taxonomy.family}")
+    for e in evidence:
+        if e.method == "global_pairwise_identity" and e.value is not None:
+            summary_parts.append(f"global pairwise identity {e.value}% {e.conclusion}")
+            break
+    if taxonomy.species:
+        summary_parts.append(f"closest species: {taxonomy.species}")
+    reasoning = ". ".join(summary_parts) + "." if summary_parts else "See agent steps above."
 
     return ClassifyResult(
         query_id=query_id,
@@ -732,7 +739,7 @@ def _build_result_from_logs(
         confidence=confidence,
         novel_species=False,
         evidence=evidence,
-        reasoning=" | ".join(reasoning_parts) if reasoning_parts else "See agent steps for details.",
+        reasoning=reasoning,
     )
 
 

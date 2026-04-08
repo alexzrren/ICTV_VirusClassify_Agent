@@ -25,6 +25,12 @@
     #result-section { display: none; }
     .evidence-card { font-size: 0.85rem; }
     .novel-badge { background: #dc3545; color: white; }
+    .cache-badge { background: #0d6efd; color: white; }
+    .history-item { cursor: pointer; padding: 6px 8px; border-radius: 4px; margin-bottom: 4px; border: 1px solid #dee2e6; }
+    .history-item:hover { background: #e9ecef; }
+    .history-item .hi-id { font-weight: 600; color: #1a6b3a; }
+    .history-item .hi-tax { color: #495057; }
+    .history-item .hi-time { color: #6c757d; font-size: 0.75rem; }
   </style>
 </head>
 <body>
@@ -87,6 +93,19 @@
             <button class="btn btn-outline-success" onclick="lookupFamily()">Look up</button>
           </div>
           <div id="family-result" class="mt-2 small" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="card shadow-sm mt-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <span class="fw-semibold">History</span>
+          <button class="btn btn-sm btn-outline-secondary" onclick="loadHistory()">Refresh</button>
+        </div>
+        <div class="card-body p-2">
+          <div id="history-list" class="small" style="max-height:250px;overflow-y:auto">
+            <span class="text-muted">Loading...</span>
+          </div>
         </div>
       </div>
     </div>
@@ -156,6 +175,17 @@ async function submitClassify() {
     });
     const data = await res.json();
     jobId = data.job_id;
+
+    // Cache hit — show result immediately
+    if (data.cached) {
+      appendStep('[Cache] Identical sequence found in local cache — returning previous result.', 'tool');
+      const cached = await fetch(`${API}/result/${jobId}`).then(r => r.json());
+      if (cached.result) showResult(cached.result, true);
+      setStatus('Done (cached)', 'success');
+      done();
+      loadHistory();
+      return;
+    }
   } catch (e) {
     appendStep(`[ERROR] Failed to submit: ${e}`, 'error');
     done();
@@ -176,6 +206,7 @@ async function submitClassify() {
       if (d.result) showResult(d.result);
       setStatus('Done', 'success');
       done();
+      loadHistory();
     } else if (d.status === 'error') {
       es.close();
       appendStep(`[ERROR] ${d.error || 'Unknown error'}`, 'error');
@@ -213,14 +244,14 @@ async function pollResult(jobId) {
   done();
 }
 
-function showResult(result) {
+function showResult(result, cached = false) {
   document.getElementById('result-section').style.display = 'block';
 
   // Confidence badge
   const conf = result.confidence || 'Unknown';
   const cb = document.getElementById('confidence-badge');
-  cb.textContent = conf;
-  cb.className = `badge confidence-${conf}`;
+  cb.textContent = cached ? `${conf} (cached)` : conf;
+  cb.className = cached ? 'badge cache-badge' : `badge confidence-${conf}`;
 
   // Novel species
   if (result.novel_species) {
@@ -256,14 +287,9 @@ function showResult(result) {
     evList.innerHTML = '<span class="text-muted small">No structured evidence recorded.</span>';
   }
 
-  // Reasoning — only show if reasoning-box is empty (SSE already showed steps)
-  const rbox = document.getElementById('reasoning-box');
-  const hasSteps = rbox.querySelectorAll('.step-line').length > 0;
-  if (!hasSteps && result.reasoning) {
-    document.getElementById('reasoning-summary').textContent = result.reasoning;
-  } else {
-    document.getElementById('reasoning-summary').textContent = '';
-  }
+  // Reasoning summary ��� always show if available
+  const reasoning = result.reasoning || buildReasoningSummary(result);
+  document.getElementById('reasoning-summary').textContent = reasoning;
 }
 
 async function lookupFamily() {
@@ -284,6 +310,24 @@ async function lookupFamily() {
   } catch(e) {
     el.innerHTML = `<span class="text-danger">${e}</span>`;
   }
+}
+
+function buildReasoningSummary(result) {
+  const parts = [];
+  const tax = result.taxonomy || {};
+  if (tax.family) parts.push(`Family: ${tax.family}`);
+  if (tax.genus) parts.push(`Genus: ${tax.genus}`);
+  if (tax.species && tax.species !== 'novel/uncertain')
+    parts.push(`Species: ${tax.species}`);
+  if (result.novel_species) parts.push('Potential novel species');
+  if (result.evidence && result.evidence.length > 0) {
+    for (const e of result.evidence) {
+      if (e.value != null && e.threshold != null)
+        parts.push(`${e.method}: ${e.value} (threshold ${e.threshold})`);
+    }
+  }
+  if (result.confidence) parts.push(`Confidence: ${result.confidence}`);
+  return parts.length > 0 ? parts.join('. ') + '.' : 'Classification complete.';
 }
 
 function appendStep(text, cls = '') {
@@ -317,6 +361,56 @@ function done() {
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── History ──────────────────────────────────────────────────────
+async function loadHistory() {
+  const el = document.getElementById('history-list');
+  try {
+    const res = await fetch(`${API}/history?limit=20`);
+    const data = await res.json();
+    const items = data.history || [];
+    if (items.length === 0) {
+      el.innerHTML = '<span class="text-muted">No previous classifications.</span>';
+      return;
+    }
+    el.innerHTML = items.map(h => {
+      const tax = [h.family, h.genus, h.species].filter(Boolean).join(' > ') || '—';
+      const time = h.created_at ? new Date(h.created_at).toLocaleString() : '';
+      return `<div class="history-item" onclick="loadCached('${h.seq_hash}')">
+        <div class="hi-id">${escHtml(h.query_id || '?')}</div>
+        <div class="hi-tax">${escHtml(tax)}</div>
+        <div class="hi-time">${escHtml(time)} &middot; ${h.confidence || '?'}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<span class="text-muted">Failed to load history.</span>';
+  }
+}
+
+async function loadCached(hash) {
+  resetUI();
+  setStatus('Loading cached result...', 'info');
+  try {
+    const res = await fetch(`${API}/cache/${hash}`);
+    if (!res.ok) { setStatus('Cache miss', 'warning'); return; }
+    const result = await res.json();
+    appendStep('[Cache] Loaded from history.', 'tool');
+    showResult(result, true);
+    setStatus('Done (cached)', 'success');
+  } catch(e) {
+    appendStep(`[ERROR] ${e}`, 'error');
+    setStatus('Error', 'danger');
+  }
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// Load history on page load
+document.addEventListener('DOMContentLoaded', loadHistory);
 </script>
 </body>
 </html>

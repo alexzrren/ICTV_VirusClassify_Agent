@@ -24,6 +24,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .agent import classify_sequence
+from .cache import cache_get, cache_put, cache_history, cache_get_by_hash
 from .knowledge.criteria import get_criteria, list_families, get_demarcation_summary
 from .models import ClassifyRequest, ClassifyResult, JobResponse, JobStatus
 from .tools.taxonomy import family_summary, lookup_species, search_any_level
@@ -70,6 +71,9 @@ async def _run_classification(job_id: str, req: ClassifyRequest):
         )
         _jobs[job_id].result = result
         _jobs[job_id].status = JobStatus.done
+        # Save to cache
+        if result:
+            cache_put(req.fasta, result)
     except Exception as e:
         _jobs[job_id].status = JobStatus.error
         _jobs[job_id].error = str(e)
@@ -87,9 +91,26 @@ def health():
 
 @app.post("/classify")
 async def classify(req: ClassifyRequest, background_tasks: BackgroundTasks):
-    """Submit a FASTA sequence for classification. Returns a job_id."""
+    """Submit a FASTA sequence for classification. Returns a job_id.
+    If the same sequence was classified before, returns the cached result instantly."""
     import logging
     logging.info(f"classify called: fasta_len={len(req.fasta)}")
+
+    # Check cache first
+    cached = cache_get(req.fasta)
+    if cached:
+        job_id = str(uuid.uuid4())
+        _jobs[job_id] = JobResponse(
+            job_id=job_id, status=JobStatus.done, result=cached,
+            steps=["[Cache] Result loaded from local cache (identical sequence was classified before)."],
+        )
+        # Create a queue that immediately signals done, so SSE works
+        queue = asyncio.Queue()
+        _step_queues[job_id] = queue
+        await queue.put("[Cache] Result loaded from local cache (identical sequence was classified before).")
+        await queue.put(None)
+        return {"job_id": job_id, "status": "done", "cached": True}
+
     job_id = str(uuid.uuid4())
     _jobs[job_id] = JobResponse(job_id=job_id, status=JobStatus.pending)
     background_tasks.add_task(_run_classification, job_id, req)
@@ -204,6 +225,23 @@ def family_summary_endpoint(family_name: str):
     if not s:
         raise HTTPException(status_code=404, detail=f"Family '{family_name}' not in taxonomy DB")
     return {**s, "family": family_name}
+
+
+# ── History / cache endpoints ────────────────────────────────────────────
+
+@app.get("/history")
+def get_history(limit: int = Query(20, le=100)):
+    """Return recent classification results from cache."""
+    return {"history": cache_history(limit)}
+
+
+@app.get("/cache/{seq_hash}")
+def get_cached_result(seq_hash: str):
+    """Retrieve a cached result by sequence hash."""
+    result = cache_get_by_hash(seq_hash)
+    if not result:
+        raise HTTPException(status_code=404, detail="Not found in cache")
+    return result.model_dump()
 
 
 # ── Serve frontend ───────────────────────────────────────────────────────────
