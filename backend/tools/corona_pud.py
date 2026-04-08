@@ -60,6 +60,11 @@ DOMAIN_COORDS_SARS2 = {
 }
 DOMAIN_ORDER = ["3CLpro", "NiRAN", "RdRp", "ZBD", "HEL1"]
 
+# Expected domain sizes (aa) — used to reject oversized HMM hits
+DOMAIN_EXPECTED_SIZE = {k: (end - start + 1) for k, (start, end) in DOMAIN_COORDS_SARS2.items()}
+# Allow up to 2x expected size to accommodate divergent viruses
+DOMAIN_SIZE_TOLERANCE = 2.0
+
 
 def _run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
     env = os.environ.copy()
@@ -69,14 +74,65 @@ def _run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, env=env, **kwargs)
 
 
-def find_orf1a_start(genome: str) -> int:
-    """Find ORF1a start: the first ATG in the 5' region that initiates a long ORF (>3000 aa)."""
-    for i in range(0, min(1000, len(genome) - 2)):
+def orient_genome(genome: str) -> tuple[str, int]:
+    """
+    Determine genome orientation by ORF analysis.
+
+    Scans all 6 reading frames (3 forward + 3 reverse complement) for the
+    longest stop-codon-free region.  Coronavirus ORF1a is always the longest
+    ORF on the genome (>4 000 aa), so the frame that contains it unambiguously
+    identifies the correct strand and reading frame.
+
+    Returns (oriented_genome, longest_orf_nt_start_0based).
+    ``longest_orf_nt_start`` is the nucleotide offset (in the oriented genome)
+    of the first codon in the longest stop-free region — useful as an upper
+    bound when searching for the ORF1a ATG.
+    """
+    best_genome = genome
+    best_orf_nt_start = 0
+    best_orf_len = 0
+    rc = str(Seq(genome).reverse_complement())
+
+    for seq in (genome, rc):
+        for frame in range(3):
+            prot = str(Seq(seq[frame:]).translate())
+            orfs = prot.split("*")
+            preceding_aa = 0
+            for orf in orfs:
+                if len(orf) > best_orf_len:
+                    best_orf_len = len(orf)
+                    best_genome = seq
+                    best_orf_nt_start = frame + preceding_aa * 3
+                preceding_aa += len(orf) + 1  # +1 for the stop codon
+
+    return best_genome, best_orf_nt_start
+
+
+def find_orf1a_start(genome: str, longest_orf_start: int = 0) -> int:
+    """
+    Find ORF1a start codon.
+
+    Searches for the first ATG upstream of (or at) the longest ORF region
+    that initiates an ORF > 3 000 aa.  ``longest_orf_start`` is a hint from
+    ``orient_genome`` — we search backwards from there and also a small
+    window forward, so truncated 5'-contigs are handled.
+
+    Returns 1-based nucleotide position.
+    """
+    # Search window: from a bit before the longest-ORF start up to 1000 nt
+    # past it (the ATG may be slightly inside the region).
+    search_from = max(0, longest_orf_start - 500)
+    search_to = min(longest_orf_start + 1000, len(genome) - 2)
+    for i in range(search_from, search_to):
         if genome[i:i+3] == "ATG":
             test = Seq(genome[i: i + 15000]).translate(to_stop=True)
             if len(test) > 3000:
                 return i + 1  # 1-based
-    return 266  # fallback to SARS-CoV-2 known start
+    # Fallback: use the start of the longest ORF directly (contig truncated
+    # at 5' — no ATG visible, but the reading frame is correct).
+    if longest_orf_start > 0:
+        return longest_orf_start + 1
+    return 266  # last resort: SARS-CoV-2 known start
 
 
 def find_frameshift_site(genome: str, orf1a_start: int) -> int:
@@ -136,34 +192,42 @@ def find_frameshift_site(genome: str, orf1a_start: int) -> int:
 def translate_orf1ab(genome_seq: str) -> Optional[str]:
     """
     Translate ORF1ab from genome nucleotide sequence.
-    Detects the ribosomal -1 frameshift site (TTTAAAC) automatically.
-    Returns the concatenated pp1a + pp1b amino acid sequence.
+
+    1. ``orient_genome`` scans all 6 reading frames to find the strand
+       carrying the longest ORF (= ORF1a for any coronavirus).
+    2. ``find_orf1a_start`` locates the ATG near that ORF.
+    3. ``find_frameshift_site`` finds the TTTAAAC slippery sequence.
+    4. ORF1a + ORF1b are translated and concatenated into pp1ab.
+
+    Returns the amino-acid string, or *None* on failure.
     """
     genome = genome_seq.upper().replace(" ", "").replace("\n", "")
     if len(genome) < 20000:
         return None
 
-    # Find ORF1a start
-    orf1a_start0 = find_orf1a_start(genome) - 1  # 0-based
+    # Step 1: orient genome by longest-ORF analysis
+    genome, longest_orf_start = orient_genome(genome)
 
-    # Find frameshift site
+    # Step 2: find ORF1a start codon
+    orf1a_start0 = find_orf1a_start(genome, longest_orf_start) - 1  # 0-based
+
+    # Step 3: find frameshift site
     slip_pos = find_frameshift_site(genome, orf1a_start0)
     if slip_pos < 0:
-        # Fallback to SARS-CoV-2 coords
-        slip_pos = 13462  # 0-based (= nt 13463 1-based)
+        slip_pos = 13462  # last-resort fallback (SARS-CoV-2)
 
-    # ORF1a: from start to frameshift site (translate frame 0, stop at stop codon)
+    # Step 4: translate ORF1a (frame 0, to first stop)
     orf1a_nt = Seq(genome[orf1a_start0: slip_pos + len(SLIPPERY_SEQ)])
     pp1a = str(orf1a_nt.translate(to_stop=True))
 
-    # ORF1b: from frameshift site - 1 (the -1 slip), stop at stop codon
-    # Use 15000 nt window (enough for any known coronavirus ORF1b ~8100 nt)
-    orf1b_start0 = slip_pos + len(SLIPPERY_SEQ) - 1  # -1 slip: back one nt
+    # Step 5: translate ORF1b (-1 frameshift, to first stop)
+    orf1b_start0 = slip_pos + len(SLIPPERY_SEQ) - 1
     orf1b_end0   = min(slip_pos + 15000, len(genome))
     orf1b_nt = Seq(genome[orf1b_start0: orf1b_end0])
     pp1b = str(orf1b_nt.translate(to_stop=True))
 
-    return pp1a + pp1b
+    pp1ab = pp1a + pp1b
+    return pp1ab if len(pp1ab) > 3000 else None
 
 
 def extract_domains_by_coords(pp1ab: str) -> dict[str, str]:
@@ -221,9 +285,16 @@ def extract_domains_by_hmm(pp1ab: str, query_id: str = "query") -> dict[str, str
             ali_end   = int(parts[18])
             dom_name = hmm_name.replace("CoV_", "")
             if dom_name in DOMAIN_ORDER:
+                hit_len = ali_end - ali_start
+                expected = DOMAIN_EXPECTED_SIZE.get(dom_name, 300)
+                max_allowed = int(expected * DOMAIN_SIZE_TOLERANCE)
+                # Reject hits that are way too large (bad HMM profile issue)
+                if hit_len > max_allowed:
+                    continue
+                score = float(parts[13])
                 # Take best hit (highest score) per domain
-                if dom_name not in domains or float(parts[13]) > float(domains[dom_name][0]):
-                    domains[dom_name] = (float(parts[13]), pp1ab[ali_start: ali_end])
+                if dom_name not in domains or score > domains[dom_name][0]:
+                    domains[dom_name] = (score, pp1ab[ali_start: ali_end])
 
         return {k: v[1] for k, v in domains.items() if len(v[1]) > 50}
 
@@ -342,11 +413,19 @@ def corona_classify_pud(genome_nt: str, top_n: int = 5) -> dict:
         return {"error": "Failed to translate ORF1ab (genome < 20kb or invalid sequence)"}
 
     # Step 2: extract query domains
-    query_domains = extract_domains_by_hmm(pp1ab, "query")
-    if not query_domains:
-        query_domains = extract_domains_by_coords(pp1ab)
+    # Use coordinate scaling as primary method (reliable for all pp1ab lengths).
+    # HMM can refine individual domains where it gives reasonable-sized hits.
+    query_domains = extract_domains_by_coords(pp1ab)
     if not query_domains:
         return {"error": "No domains extracted from ORF1ab"}
+    hmm_domains = extract_domains_by_hmm(pp1ab, "query")
+    for dom in DOMAIN_ORDER:
+        if dom in hmm_domains and dom in query_domains:
+            # Only use HMM result if it's a better-sized match
+            hmm_len = len(hmm_domains[dom])
+            expected = DOMAIN_EXPECTED_SIZE.get(dom, 300)
+            if abs(hmm_len - expected) < abs(len(query_domains[dom]) - expected):
+                query_domains[dom] = hmm_domains[dom]
 
     # Step 3: process reference sequences
     if not REF_FASTA.exists():

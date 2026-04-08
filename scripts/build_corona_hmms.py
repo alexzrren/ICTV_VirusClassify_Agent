@@ -53,17 +53,16 @@ def find_sarscov2(fasta: Path) -> SeqIO.SeqRecord | None:
     return None
 
 
-def translate_orf1ab(genome_seq: Seq) -> Seq:
-    """Translate ORF1ab using simple concatenation (ignores framshift, ok for domain extraction)."""
-    # Extract orf1a portion
-    orf1a = genome_seq[ORF1AB_NT_START - 1: 13468]
-    # orf1b is -1 frameshift at 13465 → start at 13464
-    orf1b = genome_seq[13464: ORF1AB_NT_END]
-    # Concatenate and translate (the framshift boundary has ~1 aa error but domains are far from it)
-    orf1ab_nt = orf1a + orf1b
-    # Use to_stop=False to avoid premature truncation; strip stop codons (*) afterwards
-    prot = orf1ab_nt.translate(to_stop=False)
-    return Seq(str(prot).replace("*", "X"))
+def translate_orf1ab(genome_seq: Seq) -> Seq | None:
+    """Translate ORF1ab with automatic frameshift site detection.
+    Delegates to corona_pud.translate_orf1ab which handles all Orthocoronavirinae."""
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from backend.tools.corona_pud import translate_orf1ab as _translate
+    result = _translate(str(genome_seq))
+    if result is None:
+        return None
+    return Seq(result)
 
 
 def extract_domain(pp1ab: Seq, start: int, end: int) -> Seq:
@@ -73,18 +72,7 @@ def extract_domain(pp1ab: Seq, start: int, end: int) -> Seq:
 
 def get_orf1ab_for_seq(rec: SeqIO.SeqRecord) -> Seq | None:
     """Translate ORF1ab from a coronavirus genome record."""
-    genome = rec.seq.upper()
-    if len(genome) < 20000:
-        return None
-    # For non-SARS sequences: use same approximate coordinates (works for Orthocoronavirinae)
-    # ORF1ab is always at the 5' end of coronavirus genomes
-    try:
-        orf1a = genome[ORF1AB_NT_START - 1: 13468]
-        orf1b = genome[13464: min(ORF1AB_NT_END, len(genome))]
-        prot = (orf1a + orf1b).translate(to_stop=False)
-        return Seq(str(prot).replace("*", "X"))
-    except Exception:
-        return None
+    return translate_orf1ab(rec.seq.upper())
 
 
 def build_domain_seeds(fasta: Path, outdir: Path) -> dict[str, Path]:
@@ -104,20 +92,23 @@ def build_domain_seeds(fasta: Path, outdir: Path) -> dict[str, Path]:
     ref_pp1ab = translate_orf1ab(sarscov2.seq.upper())
     print(f"  SARS-CoV-2 pp1ab: {len(ref_pp1ab)} aa")
 
-    # Extract domains from all reference sequences
+    # Extract domains from all reference sequences using coordinate scaling
+    SARS2_LEN = len(ref_pp1ab)  # ~7096 aa
     for rec in records:
         if len(rec.seq) < 20000:
             continue
         try:
             pp1ab = translate_orf1ab(rec.seq.upper())
-            if len(pp1ab) < 3000:
+            if pp1ab is None or len(pp1ab) < 3000:
                 continue
+            scale = len(pp1ab) / SARS2_LEN
             for dom_name, (start, end) in DOMAINS.items():
-                if end <= len(pp1ab):
-                    dom_seq = extract_domain(pp1ab, start, end)
-                    if len(dom_seq) > 50:
-                        safe_id = rec.id.replace(".", "_").replace(" ", "_")[:30]
-                        domain_seqs[dom_name].append((safe_id, dom_seq))
+                s = max(0, int((start - 1) * scale))
+                e = min(len(pp1ab), int(end * scale))
+                if e > s + 50:
+                    dom_seq = pp1ab[s: e]
+                    safe_id = rec.id.replace(".", "_").replace(" ", "_")[:30]
+                    domain_seqs[dom_name].append((safe_id, dom_seq))
         except Exception as e:
             pass
 
