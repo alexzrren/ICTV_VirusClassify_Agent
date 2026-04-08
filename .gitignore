@@ -6,11 +6,20 @@ __pycache__/
 .venv/
 venv/
 
-# Data (large files, download locally)
+# Data (large files, rebuild locally)
 data/references/
 data/db/
 data/taxonomy.db
 data/vectordb/
+data/cache.db
+
+# HMM profiles (rebuild with scripts/build_family_hmms.py and build_corona_hmms.py)
+# Keep CoV_5domains.hmm (Coronaviridae) and hmm_targets.json in repo
+data/hmm/seeds/
+data/hmm/*_targets.hmm
+data/hmm/*_targets.hmm.h3?
+data/hmm/*.hmm
+!data/hmm/CoV_*.hmm
 
 # Environment
 .env

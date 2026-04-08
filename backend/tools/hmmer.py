@@ -1,12 +1,18 @@
 """
-HMMER wrapper for extracting target genomic regions (e.g. RdRp) from query sequences.
+HMMER wrapper for extracting target genomic regions from query sequences.
 
-Wraps hmmsearch + coordinate-based sequence extraction.
-Reuses logic from the existing ictv_classifier pipeline.
+Supports family-specific HMM profiles (built by scripts/build_family_hmms.py)
+as well as legacy RdRp profiles.  Runtime flow:
+
+  1. Resolve HMM path: data/hmm/{Family}_targets.hmm (preferred) or legacy dir
+  2. getorf to predict ORFs from nucleotide query
+  3. hmmsearch each ORF against the family HMM
+  4. Return extracted protein region(s)
 """
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
@@ -15,7 +21,9 @@ from pathlib import Path
 from typing import Optional
 
 _PROJECT_ROOT = Path(__file__).parent.parent.parent
-_HMM_DIR = os.environ.get(
+_HMM_DIR = _PROJECT_ROOT / "data" / "hmm"
+_HMM_TARGETS = _PROJECT_ROOT / "data" / "hmm_targets.json"
+_LEGACY_HMM_DIR = os.environ.get(
     "HMM_DIR",
     "/home/renzirui/Projects/Phylogenetic_Background/VHDB_RdRp_firstpass/Crop_Profile"
 )
@@ -36,7 +44,8 @@ def hmmsearch_protein(protein_seq: str, hmm_path: str,
 
     try:
         result = subprocess.run(
-            ["hmmsearch", "--domtblout", domtbl_path, "-E", "1e-3",
+            ["/home/renzirui/micromamba/bin/hmmsearch",
+             "--domtblout", domtbl_path, "-E", "1e-3",
              "--domE", "1e-3", hmm_path, query_path],
             capture_output=True, text=True, check=False
         )
@@ -76,59 +85,169 @@ def _parse_domtbl(domtbl_path: str, min_score: float) -> list[dict]:
     return hits
 
 
-def extract_hmm_region(nucleotide_seq: str, family: str,
-                        hmm_dir: Optional[str] = None) -> Optional[str]:
-    """
-    Extract the HMM-matched protein region from a nucleotide sequence.
+def _resolve_hmm_path(family: str) -> Optional[Path]:
+    """Find the HMM profile for a family. Checks family-specific targets first."""
+    # 1. Family-specific combined HMM (from build_family_hmms.py)
+    combined = _HMM_DIR / f"{family}_targets.hmm"
+    if combined.exists():
+        return combined
+    # 2. Coronaviridae special case
+    cov = _HMM_DIR / "CoV_5domains.hmm"
+    if family.lower() == "coronaviridae" and cov.exists():
+        return cov
+    # 3. Legacy RdRp profiles
+    legacy = Path(_LEGACY_HMM_DIR)
+    for pattern in [f"{family}.hmm", f"{family.lower()}.hmm"]:
+        matches = list(legacy.glob(pattern))
+        if matches:
+            return matches[0]
+    return None
 
-    Uses EMBOSS getorf to predict ORFs, then hmmsearch against the family HMM.
-    Returns the best-matching protein subsequence, or None if not found.
-    """
-    hdir = Path(hmm_dir or _HMM_DIR)
-    hmm_path = hdir / f"{family}.hmm"
-    if not hmm_path.exists():
-        # Try case-insensitive
-        matches = list(hdir.glob(f"{family}.hmm")) + list(hdir.glob(f"{family.lower()}.hmm"))
-        if not matches:
-            raise FileNotFoundError(f"HMM profile not found for {family} in {hdir}")
-        hmm_path = matches[0]
 
-    # Step 1: EMBOSS getorf to predict ORFs
+def list_available_hmms() -> dict[str, list[str]]:
+    """Return {family: [region_names]} for all families with HMM profiles."""
+    result = {}
+    for hmm_file in _HMM_DIR.glob("*_targets.hmm"):
+        family = hmm_file.name.replace("_targets.hmm", "")
+        # Read HMM names from the file
+        regions = []
+        for line in hmm_file.open():
+            if line.startswith("NAME"):
+                name = line.split()[1].replace(f"{family}_", "")
+                regions.append(name)
+        if regions:
+            result[family] = regions
+    # Coronaviridae special
+    cov = _HMM_DIR / "CoV_5domains.hmm"
+    if cov.exists() and "Coronaviridae" not in result:
+        result["Coronaviridae"] = ["3CLpro", "NiRAN", "RdRp", "ZBD", "HEL1"]
+    return result
+
+
+def _run_getorf(nucleotide_seq: str, min_size: int = 300) -> dict[str, str]:
+    """Run EMBOSS getorf and return {header: protein_seq}."""
+    getorf_bin = "/home/renzirui/micromamba/bin/_getorf"
+    env = os.environ.copy()
+    emboss_bin = str(Path(getorf_bin).parent)
+    env["EMBOSS_ACDROOT"] = str(Path(emboss_bin) / ".." / "share" / "EMBOSS" / "acd")
+    env["EMBOSS_DATA"] = str(Path(emboss_bin) / ".." / "share" / "EMBOSS" / "data")
+
     with tempfile.NamedTemporaryFile(mode="w", suffix=".fasta", delete=False) as f:
         f.write(f">query\n{nucleotide_seq}\n")
         nuc_path = f.name
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".orf.fasta", delete=False) as f:
-        orf_path = f.name
-
+    orf_path = nuc_path + ".orf"
     try:
-        result = subprocess.run(
-            ["getorf", "-sequence", nuc_path, "-outseq", orf_path,
-             "-find", "1", "-minsize", "300"],
-            capture_output=True, text=True, check=False
+        subprocess.run(
+            [getorf_bin, "-sequence", nuc_path, "-outseq", orf_path,
+             "-find", "1", "-minsize", str(min_size)],
+            capture_output=True, text=True, check=False, env=env,
         )
-        if result.returncode != 0:
-            raise RuntimeError(f"getorf failed: {result.stderr[:300]}")
-
-        # Parse ORF proteins
-        orf_text = Path(orf_path).read_text()
-        orfs = _parse_fasta_seqs(orf_text)
-        if not orfs:
-            return None
-
-        # Step 2: Find the best ORF matching the HMM
-        best_protein = None
-        best_score = 0.0
-        for header, prot_seq in orfs.items():
-            hits = hmmsearch_protein(prot_seq, str(hmm_path))
-            if hits and hits[0]["score"] > best_score:
-                best_score = hits[0]["score"]
-                h = hits[0]
-                best_protein = prot_seq[h["start"]:h["end"]]
-
-        return best_protein
+        if not Path(orf_path).exists():
+            return {}
+        return _parse_fasta_seqs(Path(orf_path).read_text())
     finally:
         Path(nuc_path).unlink(missing_ok=True)
         Path(orf_path).unlink(missing_ok=True)
+
+
+def extract_hmm_region(nucleotide_seq: str, family: str,
+                        hmm_dir: Optional[str] = None) -> Optional[str]:
+    """
+    Extract the best HMM-matched protein region from a nucleotide sequence.
+    Returns the single best-matching protein subsequence, or None.
+    """
+    hmm_path = _resolve_hmm_path(family)
+    if not hmm_path:
+        raise FileNotFoundError(f"HMM profile not found for {family}")
+
+    orfs = _run_getorf(nucleotide_seq)
+    if not orfs:
+        return None
+
+    best_protein = None
+    best_score = 0.0
+    for header, prot_seq in orfs.items():
+        hits = hmmsearch_protein(prot_seq, str(hmm_path))
+        if hits and hits[0]["score"] > best_score:
+            best_score = hits[0]["score"]
+            h = hits[0]
+            best_protein = prot_seq[h["start"]:h["end"]]
+
+    return best_protein
+
+
+def extract_all_regions(nucleotide_seq: str, family: str) -> dict[str, str]:
+    """
+    Extract all HMM-defined target protein regions from a nucleotide sequence.
+
+    Returns {region_name: protein_sequence} for each region found.
+    Uses the family-specific combined HMM built by build_family_hmms.py.
+    """
+    hmm_path = _resolve_hmm_path(family)
+    if not hmm_path:
+        return {}
+
+    orfs = _run_getorf(nucleotide_seq, min_size=150)
+    if not orfs:
+        return {}
+
+    # Search all ORFs against the combined HMM; collect best hit per HMM name
+    best_per_region: dict[str, tuple[float, str]] = {}  # region -> (score, protein)
+
+    for header, prot_seq in orfs.items():
+        hits = hmmsearch_protein(prot_seq, str(hmm_path), min_score=20.0)
+        for h in hits:
+            # The HMM name encodes the region: {Family}_{region}
+            # We need to read it from the domtbl — but hmmsearch_protein
+            # doesn't return the HMM name. Use the full domtbl parse instead.
+            pass
+
+    # Fallback: use domtblout-based parsing for multi-region extraction
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        # Write all ORFs to a single FASTA
+        orf_fa = tmp / "orfs.faa"
+        with open(orf_fa, "w") as f:
+            for hdr, seq in orfs.items():
+                f.write(f">{hdr}\n{seq}\n")
+
+        hmmsearch_bin = "/home/renzirui/micromamba/bin/hmmsearch"
+        dom_out = tmp / "dom.tbl"
+        subprocess.run(
+            [hmmsearch_bin, "--noali", "--domtblout", str(dom_out),
+             "-E", "1e-5", str(hmm_path), str(orf_fa)],
+            capture_output=True, text=True,
+        )
+
+        if not dom_out.exists():
+            return {}
+
+        for line in dom_out.read_text().splitlines():
+            if line.startswith("#"):
+                continue
+            parts = line.split()
+            if len(parts) < 22:
+                continue
+            target_name = parts[0]  # ORF name
+            hmm_name = parts[3]     # e.g. Paramyxoviridae_L_protein
+            score = float(parts[13])
+            ali_start = int(parts[17]) - 1
+            ali_end = int(parts[18])
+
+            # Strip family prefix to get region name
+            region = hmm_name
+            prefix = f"{family}_"
+            if hmm_name.startswith(prefix):
+                region = hmm_name[len(prefix):]
+
+            prot_seq = orfs.get(target_name, "")
+            extracted = prot_seq[ali_start:ali_end]
+
+            if len(extracted) > 50:
+                if region not in best_per_region or score > best_per_region[region][0]:
+                    best_per_region[region] = (score, extracted)
+
+    return {k: v[1] for k, v in best_per_region.items()}
 
 
 def _parse_fasta_seqs(text: str) -> dict[str, str]:

@@ -1,0 +1,128 @@
+{
+  "_comment": "HMM target regions for each virus family. Used by build_family_hmms.py to construct HMM profiles and by hmmer.py at runtime for protein extraction.",
+
+  "Paramyxoviridae": {
+    "regions": [
+      {"name": "L_protein", "min_orf_aa": 2000, "description": "RNA-dependent RNA polymerase large protein (~2200 aa)"}
+    ]
+  },
+  "Caliciviridae": {
+    "regions": [
+      {"name": "VP1_capsid", "min_orf_aa": 500, "description": "Major capsid protein VP1 (~530-580 aa)"}
+    ]
+  },
+  "Nairoviridae": {
+    "regions": [
+      {"name": "L_RdRp", "min_orf_aa": 2000, "description": "L segment RNA-dependent RNA polymerase (~3900 aa)"}
+    ]
+  },
+  "Peribunyaviridae": {
+    "regions": [
+      {"name": "L_protein", "min_orf_aa": 2000, "description": "L segment polymerase (~2200 aa)"}
+    ]
+  },
+  "Phenuiviridae": {
+    "regions": [
+      {"name": "L_RdRp", "min_orf_aa": 1500, "description": "L segment RNA-dependent RNA polymerase (~2000-2500 aa)"}
+    ]
+  },
+  "Parvoviridae": {
+    "regions": [
+      {"name": "NS1_Rep", "min_orf_aa": 400, "description": "NS1/Rep helicase (~600-700 aa)"}
+    ]
+  },
+  "Papillomaviridae": {
+    "regions": [
+      {"name": "L1_ORF", "min_orf_aa": 400, "description": "Major capsid protein L1 (~500 aa)"}
+    ]
+  },
+  "Anelloviridae": {
+    "regions": [
+      {"name": "ORF1", "min_orf_aa": 200, "description": "ORF1 replication-associated protein (~250-750 aa)"}
+    ]
+  },
+  "Hepeviridae": {
+    "regions": [
+      {"name": "ORF1", "min_orf_aa": 1500, "description": "ORF1 nonstructural polyprotein with methyltransferase domain (~1700 aa)"}
+    ]
+  },
+  "Flaviviridae": {
+    "regions": [
+      {"name": "NS3", "min_orf_aa": 500, "description": "NS3 serine protease and helicase (~620 aa)"},
+      {"name": "NS5_RdRp", "min_orf_aa": 800, "description": "NS5/NS5B RNA-dependent RNA polymerase (~900 aa)"}
+    ]
+  },
+  "Picornaviridae": {
+    "regions": [
+      {"name": "P1_capsid", "min_orf_aa": 700, "description": "P1 structural polyprotein region (~850 aa)"},
+      {"name": "3D_polymerase", "min_orf_aa": 400, "description": "3D RNA-dependent RNA polymerase (~460 aa)"}
+    ]
+  },
+  "Rhabdoviridae": {
+    "regions": [
+      {"name": "L_protein", "min_orf_aa": 1500, "description": "RNA-dependent RNA polymerase large protein (~2100 aa)"},
+      {"name": "N_protein", "min_orf_aa": 350, "description": "Nucleoprotein (~420-530 aa)"}
+    ]
+  },
+  "Adenoviridae": {
+    "regions": [
+      {"name": "DNA_polymerase", "min_orf_aa": 800, "description": "DNA-dependent DNA polymerase (~1000-1200 aa)"}
+    ]
+  },
+  "Togaviridae": {
+    "regions": [
+      {"name": "nsP4_RdRp", "min_orf_aa": 500, "description": "nsP4 RNA-dependent RNA polymerase (~610 aa)"}
+    ]
+  },
+  "Hantaviridae": {
+    "regions": [
+      {"name": "L_RdRp", "min_orf_aa": 2000, "description": "L segment RNA-dependent RNA polymerase (~2150 aa)"}
+    ]
+  },
+  "Arenaviridae": {
+    "regions": [
+      {"name": "L_RdRp", "min_orf_aa": 1500, "description": "L segment RNA-dependent RNA polymerase (~2200 aa)"}
+    ]
+  },
+  "Sedoreoviridae": {
+    "regions": [
+      {"name": "RdRp", "min_orf_aa": 1000, "description": "RNA-dependent RNA polymerase VP1 (~1200 aa)"}
+    ]
+  },
+  "Spinareoviridae": {
+    "regions": [
+      {"name": "RdRp", "min_orf_aa": 1000, "description": "RNA-dependent RNA polymerase lambda3/VP1 (~1260 aa)"}
+    ]
+  },
+  "Circoviridae": {
+    "regions": [
+      {"name": "Rep", "min_orf_aa": 200, "description": "Replication-associated protein Rep (~300 aa)"}
+    ]
+  },
+  "Filoviridae": {
+    "regions": [
+      {"name": "L_protein", "min_orf_aa": 2000, "description": "RNA-dependent RNA polymerase large protein (~2210 aa)"}
+    ]
+  },
+  "Bornaviridae": {
+    "regions": [
+      {"name": "L_protein", "min_orf_aa": 1500, "description": "RNA-dependent RNA polymerase large protein (~1900 aa)"}
+    ]
+  },
+  "Pneumoviridae": {
+    "regions": [
+      {"name": "L_protein", "min_orf_aa": 2000, "description": "RNA-dependent RNA polymerase large protein (~2160 aa)"}
+    ]
+  },
+  "Polyomaviridae": {
+    "regions": [
+      {"name": "VP1", "min_orf_aa": 300, "description": "Major capsid protein VP1 (~360 aa)"},
+      {"name": "LTAg", "min_orf_aa": 600, "description": "Large T antigen (~700 aa)"}
+    ]
+  },
+  "Orthoherpesviridae": {
+    "regions": [
+      {"name": "DNA_polymerase", "min_orf_aa": 800, "description": "DNA polymerase catalytic subunit (~1200 aa)"}
+    ]
+  }
+}

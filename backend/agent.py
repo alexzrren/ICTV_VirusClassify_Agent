@@ -208,6 +208,31 @@ TOOLS = [
             "required": ["genome_nt"],
         },
     },
+    {
+        "name": "extract_target_region",
+        "description": (
+            "Extract family-specific target protein region(s) from a nucleotide genome "
+            "using HMM profiles. Supports most families with defined classification regions "
+            "(e.g. L protein for Paramyxoviridae, VP1 for Caliciviridae, NS5 RdRp for "
+            "Flaviviridae, etc.). Returns extracted protein sequences that can then be used "
+            "with compute_pairwise_identity for ICTV threshold comparison. "
+            "Use this when get_criteria specifies a particular gene region for comparison."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "genome_nt": {
+                    "type": "string",
+                    "description": "Nucleotide genome sequence",
+                },
+                "family": {
+                    "type": "string",
+                    "description": "Virus family name (e.g. Paramyxoviridae)",
+                },
+            },
+            "required": ["genome_nt", "family"],
+        },
+    },
 ]
 
 
@@ -413,6 +438,27 @@ def _execute_tool(name: str, inputs: dict) -> str:
             result = corona_classify_pud(genome_nt, top_n=top_n)
             return json.dumps(result)
 
+        elif name == "extract_target_region":
+            from .tools.hmmer import extract_all_regions, list_available_hmms
+            genome_nt = inputs["genome_nt"].replace("\n", "").replace(" ", "")
+            family = inputs["family"]
+            regions = extract_all_regions(genome_nt, family)
+            if not regions:
+                avail = list_available_hmms()
+                return json.dumps({
+                    "error": f"No target regions extracted for {family}",
+                    "available_families": list(avail.keys()),
+                })
+            return json.dumps({
+                "family": family,
+                "regions_extracted": list(regions.keys()),
+                "region_lengths": {k: len(v) for k, v in regions.items()},
+                "sequences": {k: v[:50] + "..." if len(v) > 50 else v
+                              for k, v in regions.items()},
+                "note": "Use these extracted proteins with compute_pairwise_identity "
+                        "to compare against reference sequences.",
+            })
+
         else:
             return json.dumps({"error": f"Unknown tool: {name}"})
 
@@ -450,8 +496,21 @@ Your task is to classify a virus sequence by strictly following ICTV official de
 - ALWAYS call blast_and_compare first — it provides both family identification AND pairwise identity in one step.
 - Use the global_pairwise_identity (not blast_pident) for ICTV threshold comparison, as BLAST pident is local alignment only.
 - For Coronaviridae sequences >20 kb, call corona_pud_classify to get subgenus classification using DEmARC PUD thresholds.
+- When get_criteria specifies a particular gene region (L protein, VP1, NS5, RdRp, etc.), use extract_target_region to extract that protein from the query genome, then use compute_pairwise_identity on the extracted region vs. the reference's extracted region.
 - Cite specific ICTV criteria thresholds and how your computed values compare.
 - Confidence levels: High (identity clearly above/below threshold), Medium (near threshold ±5%), Low (insufficient data).
+
+## HMM-based region extraction
+extract_target_region can extract family-specific target proteins from nucleotide genomes:
+- Paramyxoviridae: L protein (~2200 aa)
+- Flaviviridae: NS3, NS5 RdRp
+- Rhabdoviridae: L protein, N protein
+- Picornaviridae: P1 capsid, 3D polymerase
+- Caliciviridae: VP1 capsid
+- Papillomaviridae: L1 ORF
+- Parvoviridae: NS1/Rep
+- And 17 more families (Hantaviridae, Phenuiviridae, Nairoviridae, Peribunyaviridae, etc.)
+Use this when the ICTV criteria specify a gene-region-specific comparison rather than whole-genome identity.
 
 ## Available families in criteria knowledge base (32 families):
 coronaviridae, picornaviridae, paramyxoviridae, flaviviridae, togaviridae, caliciviridae,
@@ -565,7 +624,7 @@ async def classify_sequence(
         f"**IMPORTANT: The full sequence is automatically injected by the system into every "
         f"tool call — you do NOT need to copy or paste the sequence into tool arguments. "
         f"For blast_search and blast_and_compare the `sequence` field is auto-filled; "
-        f"for corona_pud_classify the `genome_nt` field is auto-filled. "
+        f"for corona_pud_classify and extract_target_region the `genome_nt` field is auto-filled. "
         f"Just call the tools directly without worrying about providing the full sequence.**\n\n"
         f"Use the tools to identify the virus family and classify it according to ICTV criteria."
         f"{family_note}{avail_note}"
@@ -636,7 +695,7 @@ async def classify_sequence(
                 inputs = dict(tu.input)
                 if tu.name in ("blast_search", "blast_and_compare"):
                     inputs["sequence"] = _full_seq
-                elif tu.name == "corona_pud_classify":
+                elif tu.name in ("corona_pud_classify", "extract_target_region"):
                     inputs["genome_nt"] = _full_seq
 
                 result_str = await asyncio.to_thread(_execute_tool, tu.name, inputs)
