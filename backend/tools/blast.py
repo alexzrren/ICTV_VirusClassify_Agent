@@ -82,8 +82,11 @@ def blastn(sequence: str, db: Optional[str] = None, max_hits: int = 10,
         f.write(f">query\n{sequence}\n")
         query_path = f.name
     try:
+        # dc-megablast is required for cross-species virus searches (~60-80% identity).
+        # megablast (default) uses word_size=28 and misses remote homologs.
         result = subprocess.run(
             ["blastn", "-query", query_path, "-db", db_path,
+             "-task", "dc-megablast",
              "-outfmt", BLAST_OUTFMT, "-max_target_seqs", str(max_hits),
              "-evalue", str(evalue), "-num_threads", "4"],
             capture_output=True, text=True, check=False
