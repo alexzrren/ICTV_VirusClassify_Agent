@@ -18,7 +18,7 @@ import os
 import uuid
 from typing import Optional
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -47,6 +47,7 @@ app.add_middleware(
 
 _jobs: dict[str, JobResponse] = {}
 _step_queues: dict[str, asyncio.Queue] = {}
+_job_tasks: dict[str, asyncio.Task] = {}
 
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
 
@@ -74,6 +75,9 @@ async def _run_classification(job_id: str, req: ClassifyRequest):
         # Save to cache
         if result:
             cache_put(req.fasta, result)
+    except asyncio.CancelledError:
+        _jobs[job_id].status = JobStatus.error
+        _jobs[job_id].error = "Cancelled by user"
     except Exception as e:
         _jobs[job_id].status = JobStatus.error
         _jobs[job_id].error = str(e)
@@ -90,7 +94,7 @@ def health():
 
 
 @app.post("/classify")
-async def classify(req: ClassifyRequest, background_tasks: BackgroundTasks):
+async def classify(req: ClassifyRequest):
     """Submit a FASTA sequence for classification. Returns a job_id.
     If the same sequence was classified before, returns the cached result instantly."""
     import logging
@@ -113,7 +117,8 @@ async def classify(req: ClassifyRequest, background_tasks: BackgroundTasks):
 
     job_id = str(uuid.uuid4())
     _jobs[job_id] = JobResponse(job_id=job_id, status=JobStatus.pending)
-    background_tasks.add_task(_run_classification, job_id, req)
+    task = asyncio.create_task(_run_classification(job_id, req))
+    _job_tasks[job_id] = task
     return {"job_id": job_id, "status": "pending"}
 
 
@@ -124,6 +129,23 @@ def get_result(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+@app.post("/cancel/{job_id}")
+async def cancel_job(job_id: str):
+    """Cancel a running classification job."""
+    job = _jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    task = _job_tasks.get(job_id)
+    if task and not task.done():
+        task.cancel()
+    job.status = JobStatus.error
+    job.error = "Cancelled by user"
+    queue = _step_queues.get(job_id)
+    if queue:
+        await queue.put(None)  # close SSE stream
+    return {"cancelled": job_id}
 
 
 @app.get("/stream/{job_id}")

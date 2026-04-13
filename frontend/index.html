@@ -120,7 +120,11 @@
       <div class="card shadow-sm mb-3">
         <div class="card-header bg-white d-flex justify-content-between align-items-center">
           <span class="fw-semibold">Agent Reasoning</span>
-          <span id="status-badge" class="badge bg-secondary">Idle</span>
+          <div class="d-flex align-items-center gap-2">
+            <button id="cancel-btn" class="btn btn-sm btn-outline-danger" style="display:none"
+              onclick="cancelJob()">&#9632; Stop</button>
+            <span id="status-badge" class="badge bg-secondary">Idle</span>
+          </div>
         </div>
         <div class="card-body p-2">
           <div id="reasoning-box"><span class="text-muted small">Steps will appear here…</span></div>
@@ -154,6 +158,17 @@
 
 <script>
 const API = '';
+let _currentJobId = null;
+
+async function cancelJob() {
+  if (!_currentJobId) return;
+  const btn = document.getElementById('cancel-btn');
+  btn.disabled = true;
+  btn.textContent = 'Stopping…';
+  try {
+    await fetch(`${API}/cancel/${_currentJobId}`, { method: 'POST' });
+  } catch(e) {}
+}
 
 async function submitClassify() {
   const fasta = document.getElementById('fasta-input').value.trim();
@@ -163,6 +178,9 @@ async function submitClassify() {
   setStatus('Running', 'warning');
   document.getElementById('submit-spinner').style.display = 'block';
   document.getElementById('submit-btn').disabled = true;
+  document.getElementById('cancel-btn').style.display = 'inline-block';
+  document.getElementById('cancel-btn').disabled = false;
+  document.getElementById('cancel-btn').textContent = '■ Stop';
 
   let jobId;
   try {
@@ -178,6 +196,7 @@ async function submitClassify() {
     });
     const data = await res.json();
     jobId = data.job_id;
+    _currentJobId = jobId;
 
     // Cache hit — show result immediately
     if (data.cached) {
@@ -212,9 +231,12 @@ async function submitClassify() {
       loadHistory();
     } else if (d.status === 'error') {
       es.close();
-      appendStep(`[ERROR] ${d.error || 'Unknown error'}`, 'error');
-      setStatus('Error', 'danger');
+      const cancelled = d.error === 'Cancelled by user';
+      appendStep(cancelled ? '[Stopped] Classification cancelled by user.' : `[ERROR] ${d.error || 'Unknown error'}`,
+                 cancelled ? 'tool' : 'error');
+      setStatus(cancelled ? 'Stopped' : 'Error', cancelled ? 'secondary' : 'danger');
       done();
+      if (cancelled) loadHistory();
     }
   };
   es.onerror = () => {
@@ -340,7 +362,28 @@ function appendStep(text, cls = '') {
   }
   const p = document.createElement('p');
   p.className = `step-line step-${cls}`;
-  p.textContent = text;
+  const LIMIT = 800;
+  if (text.length > LIMIT) {
+    const preview = text.slice(0, LIMIT);
+    const rest = text.slice(LIMIT);
+    const span = document.createElement('span');
+    span.textContent = preview;
+    const toggle = document.createElement('a');
+    toggle.href = '#';
+    toggle.style.marginLeft = '4px';
+    toggle.style.fontSize = '0.75rem';
+    toggle.style.color = '#89b4fa';
+    toggle.textContent = `… [+${rest.length} chars, click to expand]`;
+    toggle.onclick = (e) => {
+      e.preventDefault();
+      span.textContent = text;
+      toggle.remove();
+    };
+    p.appendChild(span);
+    p.appendChild(toggle);
+  } else {
+    p.textContent = text;
+  }
   box.appendChild(p);
   box.scrollTop = box.scrollHeight;
 }
@@ -361,6 +404,8 @@ function resetUI() {
 function done() {
   document.getElementById('submit-spinner').style.display = 'none';
   document.getElementById('submit-btn').disabled = false;
+  document.getElementById('cancel-btn').style.display = 'none';
+  _currentJobId = null;
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
