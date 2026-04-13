@@ -18,9 +18,9 @@ set -e
 PORT=${1:-18231}
 
 # Default LLM config (volcano engine GLM-4.7, Anthropic-compatible)
-export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:?Please set ANTHROPIC_API_KEY}"
-export ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-https://ark.cn-beijing.volces.com/api/coding}"
-export CLAUDE_MODEL="${CLAUDE_MODEL:-glm-4.7}"
+export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-sk-e01b2ba657c93505b189544dc5b214e850dec89c1d80aafda5c5e80e07c041eb}"
+export ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-https://api.svips.org}"
+export CLAUDE_MODEL="${CLAUDE_MODEL:-MiniMax-M2.7-highspeed}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Activate micromamba base environment if available

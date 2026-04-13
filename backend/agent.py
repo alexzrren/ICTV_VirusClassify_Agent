@@ -24,6 +24,34 @@ from .tools.blast import blastn, diamond_blastp
 from .tools.taxonomy import full_taxonomy, lookup_by_family, lookup_species, search_any_level
 from .tools.corona_pud import corona_classify_pud
 
+# ── Shared LLM client (reused across classify calls to avoid TCP cold-start) ──
+
+_shared_client: anthropic.Anthropic | None = None
+_shared_client_key: tuple[str, str] = ("", "")  # (api_key, base_url)
+
+
+def _get_shared_client(api_key: str, base_url: str | None) -> anthropic.Anthropic:
+    """Return a module-level Anthropic client, creating or recycling as needed.
+
+    The httpx.Client is configured with trust_env=False (bypasses local proxy)
+    and a generous 120-second timeout. Keeping a single client across classify
+    calls lets httpx reuse its TCP/TLS connection pool, eliminating the 60-130s
+    cold-start penalty on first API call after server restart.
+    """
+    global _shared_client, _shared_client_key
+    key = (api_key, base_url or "")
+    if _shared_client is not None and _shared_client_key == key:
+        return _shared_client
+
+    http_client = httpx.Client(trust_env=False, timeout=120.0)
+    kwargs: dict = {"api_key": api_key, "http_client": http_client}
+    if base_url:
+        kwargs["base_url"] = base_url
+    _shared_client = anthropic.Anthropic(**kwargs)
+    _shared_client_key = key
+    return _shared_client
+
+
 # ── Tool definitions (Claude tool_use schema) ───────────────────────────────
 
 TOOLS = [
@@ -216,27 +244,76 @@ TOOLS = [
             "(e.g. L protein for Paramyxoviridae, VP1 for Caliciviridae, NS5 RdRp for "
             "Flaviviridae, etc.). Returns extracted protein sequences that can then be used "
             "with compute_pairwise_identity for ICTV threshold comparison. "
-            "Use this when get_criteria specifies a particular gene region for comparison."
+            "Use this when get_criteria specifies a particular gene region for comparison.\n\n"
+            "Two modes:\n"
+            "  • Default: extract from the QUERY genome (genome_nt is auto-injected server-side).\n"
+            "  • Reference mode: set ref_accession to the accession of a reference you previously "
+            "fetched via fetch_reference_sequence. The server will resolve the full cached "
+            "reference sequence and extract from it. Use this to get the SAME region from a "
+            "reference so you can then call compute_pairwise_identity(query_region, ref_region)."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "genome_nt": {
-                    "type": "string",
-                    "description": "Nucleotide genome sequence",
-                },
                 "family": {
                     "type": "string",
                     "description": "Virus family name (e.g. Paramyxoviridae)",
                 },
+                "ref_accession": {
+                    "type": "string",
+                    "description": (
+                        "Optional. If set, extract from the cached reference sequence with "
+                        "this accession instead of the query. The accession must have been "
+                        "fetched previously via fetch_reference_sequence."
+                    ),
+                },
             },
-            "required": ["genome_nt", "family"],
+            "required": ["family"],
+        },
+    },
+    {
+        "name": "compare_query_to_reference",
+        "description": (
+            "All-in-one region comparison tool. Given a virus family and a reference accession "
+            "(from BLAST hits), this tool:\n"
+            "  1. Extracts family-specific target protein regions from the QUERY genome\n"
+            "  2. Fetches the reference genome from the local database\n"
+            "  3. Extracts the SAME regions from the reference\n"
+            "  4. Computes amino acid pairwise identity and p-distance for each region\n\n"
+            "Returns aa_identity (%) and aa_p_distance for each region, ready for ICTV "
+            "threshold comparison. Use this instead of manually chaining extract_target_region "
+            "and compute_pairwise_identity — it's faster and avoids passing large protein "
+            "sequences through the conversation.\n\n"
+            "Example: For Hepacivirus (Flaviviridae), ICTV requires NS3 p-distance >0.25 and "
+            "NS5B p-distance >0.30 for novel species. Call compare_query_to_reference with "
+            "family='Flaviviridae' and ref_accession='KX905133.1' to get both p-distances "
+            "in one call."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "family": {
+                    "type": "string",
+                    "description": "Virus family name (e.g. Flaviviridae, Paramyxoviridae)",
+                },
+                "ref_accession": {
+                    "type": "string",
+                    "description": "Reference accession from a BLAST hit (e.g. KX905133.1)",
+                },
+            },
+            "required": ["family", "ref_accession"],
         },
     },
 ]
 
 
 # ── Tool execution ───────────────────────────────────────────────────────────
+
+# Cache reference sequences fetched during a classification run so they can
+# be auto-injected into downstream tools (extract_target_region, pairwise id)
+# without flowing back through the LLM context.
+_ref_seq_cache: dict[str, str] = {}
+
 
 def _execute_tool(name: str, inputs: dict) -> str:
     """Dispatch tool call and return result as JSON string."""
@@ -365,12 +442,22 @@ def _execute_tool(name: str, inputs: dict) -> str:
                 seqs = parse_fasta(fasta_file.read_text())
                 for header, seq in seqs.items():
                     if acc.lower() in header.lower():
+                        clean_seq = seq.replace("\n", "")
+                        # Cache full sequence for auto-injection into downstream tools
+                        _ref_seq_cache[header.split()[0]] = clean_seq
                         return json.dumps({
                             "accession": header.split()[0],
                             "header": header[:200],
                             "family": fam_dir.name,
-                            "length": len(seq.replace("\n", "")),
-                            "sequence": seq.replace("\n", ""),
+                            "length": len(clean_seq),
+                            "sequence_preview": clean_seq[:80] + "..." + clean_seq[-40:],
+                            "note": (
+                                "Full sequence is cached server-side. blast_and_compare "
+                                "already provides global_pairwise_identity for BLAST hits; "
+                                "DO NOT attempt to manually re-run compute_pairwise_identity "
+                                "on reference vs query with raw sequences — use the values "
+                                "already reported by blast_and_compare."
+                            ),
                         })
             return json.dumps({"error": f"No reference sequence found for '{acc}'."})
 
@@ -440,8 +527,38 @@ def _execute_tool(name: str, inputs: dict) -> str:
 
         elif name == "extract_target_region":
             from .tools.hmmer import extract_all_regions, list_available_hmms
-            genome_nt = inputs["genome_nt"].replace("\n", "").replace(" ", "")
             family = inputs["family"]
+            ref_accession = (inputs.get("ref_accession") or "").strip()
+            source_label = "query"
+            if ref_accession:
+                # Reference mode: resolve cached full-length sequence.
+                genome_nt = _ref_seq_cache.get(ref_accession, "")
+                if not genome_nt:
+                    # Fallback: scan reference FASTA files for the accession.
+                    ref_dir = Path(__file__).resolve().parent.parent / "data" / "references"
+                    for fam_dir in ref_dir.iterdir():
+                        if not fam_dir.is_dir():
+                            continue
+                        fasta_file = fam_dir / "sequences.fasta"
+                        if not fasta_file.exists():
+                            continue
+                        for header, seq in parse_fasta(fasta_file.read_text()).items():
+                            if ref_accession.lower() in header.lower():
+                                genome_nt = seq.replace("\n", "")
+                                _ref_seq_cache[header.split()[0]] = genome_nt
+                                break
+                        if genome_nt:
+                            break
+                if not genome_nt:
+                    return json.dumps({
+                        "error": (
+                            f"Reference accession '{ref_accession}' not found in cache "
+                            f"or reference database. Call fetch_reference_sequence first."
+                        )
+                    })
+                source_label = f"reference:{ref_accession}"
+            else:
+                genome_nt = inputs["genome_nt"].replace("\n", "").replace(" ", "")
             regions = extract_all_regions(genome_nt, family)
             if not regions:
                 avail = list_available_hmms()
@@ -450,13 +567,99 @@ def _execute_tool(name: str, inputs: dict) -> str:
                     "available_families": list(avail.keys()),
                 })
             return json.dumps({
+                "source": source_label,
                 "family": family,
                 "regions_extracted": list(regions.keys()),
                 "region_lengths": {k: len(v) for k, v in regions.items()},
                 "sequences": {k: v[:50] + "..." if len(v) > 50 else v
                               for k, v in regions.items()},
-                "note": "Use these extracted proteins with compute_pairwise_identity "
-                        "to compare against reference sequences.",
+                "note": (
+                    "Protein sequences truncated for display. "
+                    "Use compare_query_to_reference for p-distance calculation."
+                ),
+            })
+
+        elif name == "compare_query_to_reference":
+            from .tools.hmmer import extract_all_regions_with_nt
+            family = inputs["family"]
+            ref_accession = inputs["ref_accession"].strip()
+
+            # 1. Extract regions from query (genome_nt is auto-injected)
+            query_nt = inputs.get("genome_nt", "").replace("\n", "").replace(" ", "")
+            query_regions = extract_all_regions_with_nt(query_nt, family)
+            if not query_regions:
+                return json.dumps({
+                    "error": f"No target regions extracted from query for {family}",
+                })
+
+            # 2. Resolve reference genome
+            ref_nt = _ref_seq_cache.get(ref_accession, "")
+            if not ref_nt:
+                ref_dir = Path(__file__).resolve().parent.parent / "data" / "references"
+                for fam_dir in ref_dir.iterdir():
+                    if not fam_dir.is_dir():
+                        continue
+                    fasta_file = fam_dir / "sequences.fasta"
+                    if not fasta_file.exists():
+                        continue
+                    for header, seq in parse_fasta(fasta_file.read_text()).items():
+                        if ref_accession.lower() in header.lower():
+                            ref_nt = seq.replace("\n", "")
+                            _ref_seq_cache[header.split()[0]] = ref_nt
+                            break
+                    if ref_nt:
+                        break
+            if not ref_nt:
+                return json.dumps({
+                    "error": f"Reference '{ref_accession}' not found in local database.",
+                })
+
+            # 3. Extract same regions from reference
+            ref_regions = extract_all_regions_with_nt(ref_nt, family)
+            if not ref_regions:
+                return json.dumps({
+                    "error": f"No target regions extracted from reference {ref_accession}",
+                })
+
+            # 4. Compute pairwise identity for each matching region (both aa AND nt)
+            comparisons = {}
+            for region_name, q_reg in query_regions.items():
+                if region_name not in ref_regions:
+                    comparisons[region_name] = {
+                        "error": "Region not found in reference",
+                        "query_aa_length": len(q_reg.protein),
+                    }
+                    continue
+                r_reg = ref_regions[region_name]
+                entry: dict = {
+                    "query_aa_length": len(q_reg.protein),
+                    "ref_aa_length": len(r_reg.protein),
+                }
+                # Amino acid identity
+                try:
+                    aa_id = pairwise_identity(q_reg.protein, r_reg.protein, is_protein=True)
+                    entry["aa_identity_pct"] = round(aa_id * 100, 2)
+                    entry["aa_p_distance"] = round(1.0 - aa_id, 4)
+                except Exception as e:
+                    entry["aa_error"] = str(e)
+                # Nucleotide identity (if both nt subsequences are available)
+                if q_reg.nucleotide and r_reg.nucleotide:
+                    entry["query_nt_length"] = len(q_reg.nucleotide)
+                    entry["ref_nt_length"] = len(r_reg.nucleotide)
+                    try:
+                        nt_id = pairwise_identity(
+                            q_reg.nucleotide, r_reg.nucleotide, is_protein=False)
+                        entry["nt_identity_pct"] = round(nt_id * 100, 2)
+                    except Exception as e:
+                        entry["nt_error"] = str(e)
+                comparisons[region_name] = entry
+
+            return json.dumps({
+                "family": family,
+                "ref_accession": ref_accession,
+                "query_regions_found": list(query_regions.keys()),
+                "ref_regions_found": list(ref_regions.keys()),
+                "comparisons": comparisons,
             })
 
         else:
@@ -494,11 +697,21 @@ Your task is to classify a virus sequence by strictly following ICTV official de
 
 ## Key rules
 - ALWAYS call blast_and_compare first — it provides both family identification AND pairwise identity in one step.
-- Use the global_pairwise_identity (not blast_pident) for ICTV threshold comparison, as BLAST pident is local alignment only.
-- For Coronaviridae sequences >20 kb, call corona_pud_classify to get subgenus classification using DEmARC PUD thresholds.
-- When get_criteria specifies a particular gene region (L protein, VP1, NS5, RdRp, etc.), use extract_target_region to extract that protein from the query genome, then use compute_pairwise_identity on the extracted region vs. the reference's extracted region.
-- Cite specific ICTV criteria thresholds and how your computed values compare.
-- Confidence levels: High (identity clearly above/below threshold), Medium (near threshold ±5%), Low (insufficient data).
+- **Family identification MUST be based on BLAST hits only.** NEVER infer family from genome size, GC content, or other heuristics.
+- **When ICTV criteria specify an amino-acid or nucleotide threshold on a SPECIFIC gene region (Hepacivirus NS3/NS5B, Paramyxoviridae L protein, Picornaviridae P1, Flaviviridae NS5, Papillomaviridae L1, etc.), you MUST compute that specific distance — do NOT substitute whole-genome BLAST identity.** Use:
+    compare_query_to_reference(family=X, ref_accession=Y)
+    This single tool call extracts the required protein region(s) from BOTH the query and the reference genome, computes amino acid pairwise identity and p-distance for each region, and returns structured results ready for threshold comparison. No need to chain extract_target_region + compute_pairwise_identity manually.
+- **Do not invent thresholds.** If get_criteria returns "no numerical threshold (phylogeny + ecology)" for the genus (e.g. Orthoflavivirus), SAY SO in your output and use BLAST hit + species name from lookup_taxonomy as evidence. Do NOT fabricate arbitrary nt-identity thresholds like "75%/70%".
+- **When the ICTV threshold is on whole genome** (e.g. Papillomaviridae L1 nt identity, Polyomaviridae genome identity), use blast_pident or global_pairwise_identity from blast_and_compare directly.
+- **Budget your tool calls.** Simple species-level confirmations need ~3 tool calls. Region-based p-distance classifications need ~4 calls (blast_and_compare → get_criteria → compare_query_to_reference → lookup_taxonomy). If you find yourself beyond 8 calls without conclusion, stop and report what you have.
+- For Coronaviridae sequences >20 kb, call corona_pud_classify — it does the full PUD pipeline in one shot.
+- Cite the EXACT ICTV criterion and threshold you applied, and the EXACT computed value from your tool calls.
+- Confidence levels: High (computed value clearly above/below threshold), Medium (within ±5% of threshold), Low (required computation failed or partial sequence).
+- **Novel species heuristic for families WITHOUT numerical thresholds** (e.g. Astroviridae, Caliciviridae, Orthoherpesviridae, Pneumoviridae, Poxviridae, etc.): when get_criteria returns no numerical threshold, use these BLAST-based rules to judge novel_species:
+    • blast_pident < 70% to the closest reference → almost certainly novel species (possibly novel genus). Set novel_species=true, confidence=Medium.
+    • blast_pident 70-90% → likely novel species. Set novel_species=true, confidence=Low.
+    • blast_pident > 90% → likely same species. Set novel_species=false, confidence=Medium.
+    State clearly in reasoning that no official ICTV numerical threshold exists and the classification is a heuristic estimate based on sequence similarity.
 
 ## HMM-based region extraction
 extract_target_region can extract family-specific target proteins from nucleotide genomes:
@@ -568,21 +781,7 @@ async def classify_sequence(
         raise RuntimeError("ANTHROPIC_API_KEY not set")
 
     base_url = os.environ.get("ANTHROPIC_BASE_URL")
-
-    # Temporarily clear proxy env vars so httpx doesn't use SOCKS proxy
-    _proxy_vars = {}
-    for pv in ("http_proxy", "https_proxy", "all_proxy",
-               "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"):
-        if pv in os.environ:
-            _proxy_vars[pv] = os.environ.pop(pv)
-
-    client_kwargs = {"api_key": api_key}
-    if base_url:
-        client_kwargs["base_url"] = base_url
-    client = anthropic.Anthropic(**client_kwargs)
-
-    # Restore proxy env vars for other tools (e.g. NCBI Entrez)
-    os.environ.update(_proxy_vars)
+    client = _get_shared_client(api_key, base_url)
 
     # Parse FASTA to get query IDs and sequences
     seqs = parse_fasta(fasta)
@@ -613,7 +812,9 @@ async def classify_sequence(
     if family_hint:
         family_note = (
             f"\n\n**The user has indicated this sequence belongs to family: {family_hint}.** "
-            f"Skip blast_search and go directly to get_criteria for {family_hint}."
+            f"Use this as a hint, but STILL call blast_and_compare first to obtain quantitative "
+            f"global pairwise identity values — these are required for ICTV threshold comparison. "
+            f"Then call get_criteria for {family_hint}."
         )
 
     user_message = (
@@ -637,9 +838,33 @@ async def classify_sequence(
     tool_result_store: list[tuple[str, str]] = []  # (tool_name, full_result_json)
 
     import asyncio
+    import re as _re
+
+    _in_think_block = False  # track <think> blocks that span multiple steps
+
+    def _strip_think(text: str) -> tuple[str, bool]:
+        """Remove <think>...</think> blocks, handling splits across steps.
+        Returns (cleaned_text, still_inside_think_block)."""
+        nonlocal _in_think_block
+        if _in_think_block:
+            # We're inside a think block from a previous step
+            if '</think>' in text:
+                text = text[text.index('</think>') + len('</think>'):]
+                _in_think_block = False
+            else:
+                return '', True  # entire chunk is inside think block
+        # Remove complete think blocks
+        text = _re.sub(r'<think>.*?</think>', '', text, flags=_re.DOTALL)
+        # Handle unclosed think block that started in this chunk
+        if '<think>' in text:
+            text = text[:text.index('<think>')]
+            _in_think_block = True
+        return text, _in_think_block
 
     for step in range(max_steps):
         # Run synchronous API call in thread pool to avoid blocking event loop
+        # Disable extended thinking: GLM-4.7 otherwise generates huge thinking blocks
+        # on complex classification prompts, making each round-trip take minutes.
         response = await asyncio.to_thread(
             client.messages.create,
             model=os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6"),
@@ -647,6 +872,7 @@ async def classify_sequence(
             system=SYSTEM_PROMPT,
             tools=TOOLS,
             messages=messages,
+            thinking={"type": "disabled"},
         )
 
         # Collect text content for logging
@@ -662,7 +888,16 @@ async def classify_sequence(
             combined_text = "\n".join(text_parts)
             log(f"[Step {step+1}] {combined_text[:300]}")
             if step_callback:
-                await step_callback(f"[Step {step+1}] {combined_text[:300]}")
+                display_text, _ = _strip_think(combined_text)
+                # Remove raw nucleotide sequences the model erroneously echoes
+                display_text = _re.sub(
+                    r'[ACGTUacgtuNn]{100,}',
+                    lambda m: f'[sequence {len(m.group())} nt — truncated]',
+                    display_text,
+                )
+                display_text = display_text.strip()
+                if display_text:
+                    await step_callback(f"[Step {step+1}] {display_text}")
 
             # Try to extract final JSON result
             if "```json" in combined_text and '"taxonomy"' in combined_text:
@@ -689,12 +924,18 @@ async def classify_sequence(
                 if step_callback:
                     await step_callback(f"[Tool] Calling {tu.name}...")
 
-                # Always inject full sequence so the model cannot truncate it
+                # Inject full query sequence so the model cannot truncate it.
+                # For extract_target_region, skip the override when the model
+                # is requesting a REFERENCE extraction (ref_accession set) —
+                # otherwise we'd clobber the reference with the query.
                 inputs = dict(tu.input)
                 if tu.name in ("blast_search", "blast_and_compare"):
                     inputs["sequence"] = _full_seq
-                elif tu.name in ("corona_pud_classify", "extract_target_region"):
+                elif tu.name in ("corona_pud_classify", "compare_query_to_reference"):
                     inputs["genome_nt"] = _full_seq
+                elif tu.name == "extract_target_region":
+                    if not inputs.get("ref_accession"):
+                        inputs["genome_nt"] = _full_seq
 
                 result_str = await asyncio.to_thread(_execute_tool, tu.name, inputs)
                 tool_result_store.append((tu.name, result_str))
