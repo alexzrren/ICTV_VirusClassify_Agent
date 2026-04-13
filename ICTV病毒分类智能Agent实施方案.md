@@ -98,18 +98,22 @@
   - `POST /classify` — 提交FASTA序列，返回job_id（自动查缓存，命中则即时返回`cached: true`）
   - `GET /stream/{job_id}` — SSE实时推理步骤
   - `GET /result/{job_id}` — 获取最终分类结果
+  - `POST /cancel/{job_id}` — 取消运行中的分类任务
   - `GET /family/{name}` — 查询某科的分类标准
   - `GET /species?q=` — MSL物种分类查询
   - `GET /history?limit=20` — 获取最近的缓存分类记录
   - `GET /cache/{seq_hash}` — 按序列哈希获取缓存结果
+  - `DELETE /cache/{seq_hash}` — 删除指定缓存条目
 
 ### LLM推理引擎
 
-- **模型**：GLM-4.7（火山引擎，Anthropic API兼容模式）或其他兼容模型，通过`ANTHROPIC_BASE_URL`和`CLAUDE_MODEL`环境变量切换
+- **模型**：MiniMax-M2.7-highspeed（api.svips.org）为默认模型，GLM-4.7（火山引擎）为备选，通过`ANTHROPIC_BASE_URL`和`CLAUDE_MODEL`环境变量切换。经三模型对比测试（M2.7 > GLM-4.7 >> kimi-k2.5），M2.7在速度（avg 67s vs 100s）和tool_use JSON输出成功率（100% vs 90%+）上最优
 - **Agent模式**：ReAct（Reasoning + Acting），最多20步推理循环
-- **系统提示词**注入：ICTV分类专家角色、标准工作流程、输出JSON格式要求
-- **工具定义**：8个工具以Claude tool_use schema注册（见下文工具清单）
-- **异步执行**：FastAPI BackgroundTasks + asyncio.to_thread，同步API调用和工具执行均通过线程池运行，不阻塞事件循环，支持并发分类请求
+- **系统提示词**注入：ICTV分类专家角色、标准工作流程、区域比对指导、无数值阈值科的novel species启发式规则、输出JSON格式要求
+- **工具定义**：**13个工具**以Claude tool_use schema注册（见下文工具清单），含composite工具`compare_query_to_reference`
+- **异步执行**：asyncio.create_task + asyncio.to_thread，支持任务取消（`POST /cancel/{job_id}`）
+- **连接管理**：模块级共享Anthropic客户端，httpx `trust_env=False`绕过本地代理，避免SOCKS proxy导致的ReadTimeout
+- **thinking控制**：`thinking={"type":"disabled"}`关闭模型扩展思维，减少token消耗和延迟
 
 ### 知识库层
 
@@ -168,7 +172,8 @@
 | TF-IDF检索 | `search_ictv_docs` | ICTV原文段落搜索 | 自然语言查询 | 相关文本块 |
 | 物种列表 | `list_reference_species` | 列出指定科/属的MSL40物种列表 | 科名/属名 | 物种名列表 |
 | DEmARC PUD | `corona_pud_classify` | **Coronaviridae专用**：翻译ORF1ab→提取5个保守结构域→计算PUD→按Table 4阈值分配亚属/属/亚科 | 核苷酸基因组（≥20 kb） | 分类层级 + Top hits + PUD值 |
-| HMM区域提取 | `extract_target_region` | **通用多科工具**：用各科专用HMM profile从基因组中提取ICTV标准指定的目标蛋白区域（L蛋白、VP1、NS5 RdRp等），供后续pairwise identity比较 | 核苷酸基因组 + 科名 | 各区域蛋白序列 + 长度 |
+| HMM区域提取 | `extract_target_region` | **通用多科工具**：用各科专用HMM profile从基因组中提取ICTV标准指定的目标蛋白区域（L蛋白、VP1、NS5 RdRp等），支持ref_accession参数从参考序列提取 | 核苷酸基因组 + 科名 + 可选ref_accession | 各区域蛋白序列 + 长度 |
+| 区域比对一体化 | `compare_query_to_reference` | **核心composite工具**：一步完成query和reference的HMM区域提取 + aa/nt pairwise identity计算，避免蛋白序列流经LLM上下文。支持核酸坐标回映（蛋白域→getorf ORF坐标→核酸子序列） | 科名 + 参考accession | 各区域aa_identity + aa_p_distance + nt_identity |
 
 ## 分类标准知识库
 
@@ -527,7 +532,16 @@ bash stop.sh 9000    # 或指定端口
 - [x] **全部34科参考序列导入 + BLAST库重建**（6,476条序列，从ictv_classifier复制）
 - [x] **24科HMM Profile库构建**（30个目标蛋白区域，通用build_family_hmms.py脚本）
 - [x] **Agent新增extract_target_region工具**（第10个工具，多科HMM蛋白提取）
-- [ ] 多科端到端测试与分类准确率评估
+- [x] **blastn改用dc-megablast**（解决<95% identity远源同源物检索失败）
+- [x] **compare_query_to_reference composite工具**（第13个工具，区域提取+aa/nt identity一步完成）
+- [x] **HMM核酸坐标回映**（蛋白域→ORF坐标→核酸子序列，支持nt identity计算）
+- [x] **httpx proxy绕过 + 共享客户端**（trust_env=False，解决multi-turn ReadTimeout）
+- [x] **任务取消端点**（POST /cancel/{job_id}，前端Stop按钮）
+- [x] **SSE输出过滤**（剥离\<think\>块、原始核苷酸回显、长文本折叠）
+- [x] **无数值阈值科的novel species启发式**（BLAST <70% → novel, 70-90% → likely novel）
+- [x] **三模型对比测试**（MiniMax-M2.7 > GLM-4.7 >> kimi-k2.5，切换默认模型）
+- [x] **12科端到端分类验证通过**（Hanta/Flavi/Calici/Astro/Picorna/Paramyxo/Parvo/Rhabdo/Adeno/Anello/Arena/Corona）
+- [ ] 多科批量准确率评估（scripts/evaluate_agent.py）
 - [ ] 与EPA-ng结果交叉验证
 
 ---
@@ -582,6 +596,65 @@ Bioinformatics, Nucleic Acids Research, Virus Evolution, PLOS Computational Biol
 ---
 
 # 进展日志
+
+## 2026年4月13日
+
+**Agent重大重构：composite工具 + 多科验证 + 模型选型 + 核酸坐标映射**
+
+**1. BLAST修复**
+- `blastn`默认task从megablast改为**dc-megablast**：megablast word_size=28只能找>95% identity，完全无法检测宏基因组中60-80% identity的远源病毒。这是非Coronaviridae科分类全部失败的根因
+
+**2. compare_query_to_reference composite工具（第13个工具）**
+- 问题：之前需要 extract_target_region(query) → fetch_reference → extract_target_region(ref) → compute_pairwise_identity 四步完成区域比对，蛋白序列（~1000+ aa）流经LLM上下文导致API响应从5s膨胀到3分钟+
+- 方案：新增`compare_query_to_reference(family, ref_accession)`一步完成全部操作，服务端处理，仅返回结构化identity数值
+- 同时返回**aa identity + nt identity**（蛋白域坐标通过getorf header `[start - end]`回映到核酸）
+
+**3. HMM核酸坐标回映**
+- `extract_all_regions_with_nt()`：返回`RegionResult(protein, nucleotide)`，蛋白+核酸配对
+- 解析EMBOSS getorf的header坐标，结合HMM域的ali_start/ali_end，计算回核酸子序列
+- 支持正链和反向互补链ORF
+- 解决Anelloviridae等需要nt identity的ICTV标准科的计算需求
+
+**4. Agent连接层修复**
+- **httpx trust_env=False**：本地Clash SOCKS代理导致httpx在multi-turn tool_use时ReadTimeout（每次API调用走127.0.0.1:7890代理）。httpx在Client创建时缓存proxy设置，运行时os.environ.pop无效
+- **模块级共享Anthropic客户端**：避免每次classify创建新client，复用TCP连接池
+- **thinking={"type":"disabled"}**：关闭模型extended thinking，减少token消耗
+- **family_hint不再与系统提示矛盾**：改为"still call blast_and_compare first"
+
+**5. 三模型对比测试（Hantaviridae + Flaviviridae + Caliciviridae）**
+
+| 模型 | 平均耗时 | JSON成功率 | 结论 |
+|------|---------|-----------|------|
+| MiniMax-M2.7-highspeed (api.svips.org) | **67s** | **100%** | **最优，设为默认** |
+| GLM-4.7 (火山引擎) | 100s | 90%+ | 可用备选 |
+| kimi-k2.5 (火山引擎) | 300s+ | 0% | 不可用 |
+
+**6. 12科端到端验证（MiniMax-M2.7-highspeed）**
+
+| 科 | 耗时 | 结果 | 标准使用 |
+|---|------|------|---------|
+| Hantaviridae | 60s | Orthohantavirus hantanense (High) | L_RdRp p-dist 0.03<0.1 ✓ |
+| Flaviviridae | 60s | Hepacivirus norvegici (High) | NS3/NS5 p-dist ✓ |
+| Caliciviridae | 80s | Norovirus sp. novel (Med) | VP1 67.2%<70% heuristic ✓ |
+| Astroviridae | 70s | Mamastrovirus sp. novel (Med) | 65.9%<70% heuristic ✓ |
+| Picornaviridae | 140s | Rabovirus aneyoci (High) | P1/3D aa identity ✓ |
+| Paramyxoviridae | 150s | Jeilongvirus (High) | L蛋白 p-dist 0.02<0.03 ✓ |
+| Parvoviridae | 90s | Dependoparvovirus sp. novel (Med) | BLAST 72%<85% proxy ✓ |
+| Adenoviridae | 250s | Mastadenovirus novel (High) | DNA pol p-dist 0.26>0.15 ✓ |
+| Anelloviridae | 90s | Wawtorquevirus murid3 (Med) | ORF1 aa 74.3% |
+| Arenaviridae | 170s | Mammarenavirus sp. novel (High) | L段 nt 83.9%>76% ✓ |
+| Rhabdoviridae | 110s | Unassigned rhabdo (Med) | BLAST fallback |
+| Coronaviridae | 30-60s | ✓ 亚属级 (High) | DEmARC PUD ✓ |
+
+科级识别100%（12/12），有效JSON输出91.7%（11/12，Parvo首次失败后换序列成功）
+
+**7. 其他改进**
+- 任务取消端点 `POST /cancel/{job_id}` + 前端Stop按钮
+- SSE输出过滤：剥离`<think>`块、原始核苷酸回显（>100 nt截断）、长文本折叠（>800字符）
+- 无数值阈值科的novel species启发式规则（BLAST <70% → novel, Medium confidence）
+- fetch_reference_sequence精简：不再返回全长序列，仅metadata+preview+服务端缓存
+
+---
 
 ## 2026年4月8日（第二次）
 
