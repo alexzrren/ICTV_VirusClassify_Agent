@@ -124,8 +124,22 @@ def list_available_hmms() -> dict[str, list[str]]:
     return result
 
 
-def _run_getorf(nucleotide_seq: str, min_size: int = 300) -> dict[str, str]:
-    """Run EMBOSS getorf and return {header: protein_seq}."""
+def _run_getorf(
+    nucleotide_seq: str, min_size: int = 300
+) -> dict[str, str]:
+    """Run EMBOSS getorf and return {short_id: protein_seq}."""
+    result = _run_getorf_with_headers(nucleotide_seq, min_size)
+    return result[0]
+
+
+def _run_getorf_with_headers(
+    nucleotide_seq: str, min_size: int = 300
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Run EMBOSS getorf. Returns (seqs, full_headers).
+
+    seqs: {short_id: protein_seq}
+    full_headers: {short_id: full_header_line} — includes '[start - end]' coords.
+    """
     getorf_bin = "/home/renzirui/micromamba/bin/_getorf"
     env = os.environ.copy()
     emboss_bin = str(Path(getorf_bin).parent)
@@ -143,11 +157,25 @@ def _run_getorf(nucleotide_seq: str, min_size: int = 300) -> dict[str, str]:
             capture_output=True, text=True, check=False, env=env,
         )
         if not Path(orf_path).exists():
-            return {}
-        return _parse_fasta_seqs(Path(orf_path).read_text())
+            return {}, {}
+        raw = Path(orf_path).read_text()
+        return _parse_fasta_seqs(raw), _parse_fasta_full_headers(raw)
     finally:
         Path(nuc_path).unlink(missing_ok=True)
         Path(orf_path).unlink(missing_ok=True)
+
+
+def _parse_orf_coords(header: str) -> tuple[int, int, bool]:
+    """Parse getorf header like 'seq_1 [123 - 456]' → (start, end, is_reverse).
+
+    Returns 1-based inclusive (start, end) from the header.
+    If start > end, the ORF is on the reverse strand.
+    """
+    m = re.search(r'\[(\d+)\s*-\s*(\d+)\]', header)
+    if not m:
+        return (0, 0, False)
+    s, e = int(m.group(1)), int(m.group(2))
+    return (s, e, s > e)
 
 
 def extract_hmm_region(nucleotide_seq: str, family: str,
@@ -176,36 +204,49 @@ def extract_hmm_region(nucleotide_seq: str, family: str,
     return best_protein
 
 
-def extract_all_regions(nucleotide_seq: str, family: str) -> dict[str, str]:
-    """
-    Extract all HMM-defined target protein regions from a nucleotide sequence.
+class RegionResult:
+    """Holds both protein and nucleotide sequences for an extracted region."""
+    __slots__ = ("protein", "nucleotide")
 
-    Returns {region_name: protein_sequence} for each region found.
-    Uses the family-specific combined HMM built by build_family_hmms.py.
+    def __init__(self, protein: str, nucleotide: str = ""):
+        self.protein = protein
+        self.nucleotide = nucleotide
+
+
+def extract_all_regions(
+    nucleotide_seq: str, family: str
+) -> dict[str, str]:
+    """Extract HMM-defined target protein regions from a nucleotide sequence.
+
+    Returns {region_name: protein_sequence} for backward compatibility.
+    Use extract_all_regions_with_nt() to also get nucleotide subsequences.
+    """
+    results = extract_all_regions_with_nt(nucleotide_seq, family)
+    return {k: v.protein for k, v in results.items()}
+
+
+def extract_all_regions_with_nt(
+    nucleotide_seq: str, family: str
+) -> dict[str, RegionResult]:
+    """Extract HMM-defined target protein regions AND their nucleotide subsequences.
+
+    For each region, returns a RegionResult with both the protein sequence
+    (from the HMM domain hit) and the corresponding nucleotide subsequence
+    (mapped back via getorf ORF coordinates + alignment boundaries).
     """
     hmm_path = _resolve_hmm_path(family)
     if not hmm_path:
         return {}
 
-    orfs = _run_getorf(nucleotide_seq, min_size=150)
+    orfs, orf_headers = _run_getorf_with_headers(nucleotide_seq, min_size=150)
     if not orfs:
         return {}
 
-    # Search all ORFs against the combined HMM; collect best hit per HMM name
-    best_per_region: dict[str, tuple[float, str]] = {}  # region -> (score, protein)
+    # region -> (score, protein, nt_subseq)
+    best_per_region: dict[str, tuple[float, str, str]] = {}
 
-    for header, prot_seq in orfs.items():
-        hits = hmmsearch_protein(prot_seq, str(hmm_path), min_score=20.0)
-        for h in hits:
-            # The HMM name encodes the region: {Family}_{region}
-            # We need to read it from the domtbl — but hmmsearch_protein
-            # doesn't return the HMM name. Use the full domtbl parse instead.
-            pass
-
-    # Fallback: use domtblout-based parsing for multi-region extraction
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
-        # Write all ORFs to a single FASTA
         orf_fa = tmp / "orfs.faa"
         with open(orf_fa, "w") as f:
             for hdr, seq in orfs.items():
@@ -228,11 +269,11 @@ def extract_all_regions(nucleotide_seq: str, family: str) -> dict[str, str]:
             parts = line.split()
             if len(parts) < 22:
                 continue
-            target_name = parts[0]  # ORF name
+            target_name = parts[0]  # ORF short_id (e.g. 'query_1')
             hmm_name = parts[3]     # e.g. Paramyxoviridae_L_protein
             score = float(parts[13])
-            ali_start = int(parts[17]) - 1
-            ali_end = int(parts[18])
+            ali_start = int(parts[17]) - 1  # 0-based protein start
+            ali_end = int(parts[18])        # exclusive protein end
 
             # Strip family prefix to get region name
             region = hmm_name
@@ -241,16 +282,49 @@ def extract_all_regions(nucleotide_seq: str, family: str) -> dict[str, str]:
                 region = hmm_name[len(prefix):]
 
             prot_seq = orfs.get(target_name, "")
-            extracted = prot_seq[ali_start:ali_end]
+            extracted_prot = prot_seq[ali_start:ali_end]
 
-            if len(extracted) > 50:
-                if region not in best_per_region or score > best_per_region[region][0]:
-                    best_per_region[region] = (score, extracted)
+            if len(extracted_prot) <= 50:
+                continue
+            if region in best_per_region and score <= best_per_region[region][0]:
+                continue
 
-    return {k: v[1] for k, v in best_per_region.items()}
+            # Map protein domain boundaries back to nucleotide coordinates
+            # using the full getorf header which contains [nt_start - nt_end].
+            nt_subseq = ""
+            full_hdr = orf_headers.get(target_name, "")
+            if full_hdr:
+                orf_start, orf_end, is_rev = _parse_orf_coords(full_hdr)
+                if orf_start > 0:
+                    if is_rev:
+                        # Reverse-strand ORF: orf_start > orf_end (1-based)
+                        nt_from = orf_start - ali_start * 3
+                        nt_to = orf_start - ali_end * 3
+                        lo = min(nt_from, nt_to) - 1  # 0-based
+                        hi = max(nt_from, nt_to)
+                        chunk = nucleotide_seq[lo:hi]
+                        comp = str.maketrans("ACGTacgt", "TGCAtgca")
+                        nt_subseq = chunk[::-1].translate(comp)
+                    else:
+                        # Forward-strand ORF: orf_start < orf_end
+                        nt_from = orf_start - 1 + ali_start * 3  # 0-based
+                        nt_to = orf_start - 1 + ali_end * 3
+                        nt_subseq = nucleotide_seq[nt_from:nt_to]
+
+            best_per_region[region] = (score, extracted_prot, nt_subseq)
+
+    return {
+        k: RegionResult(protein=v[1], nucleotide=v[2])
+        for k, v in best_per_region.items()
+    }
 
 
 def _parse_fasta_seqs(text: str) -> dict[str, str]:
+    """Parse FASTA text → {short_id: sequence}.
+
+    Uses the first token of the header as key (compatible with hmmsearch
+    domtblout target_name field).
+    """
     seqs: dict[str, str] = {}
     cur = ""
     for line in text.splitlines():
@@ -260,3 +334,18 @@ def _parse_fasta_seqs(text: str) -> dict[str, str]:
         elif cur:
             seqs[cur] += line.strip().replace("*", "")
     return seqs
+
+
+def _parse_fasta_full_headers(text: str) -> dict[str, str]:
+    """Parse FASTA text → {short_id: full_header_line}.
+
+    Builds a lookup from short ID (e.g. 'query_1') to the full header
+    including coordinate annotations like '[123 - 456]'.
+    """
+    headers: dict[str, str] = {}
+    for line in text.splitlines():
+        if line.startswith(">"):
+            full = line[1:].strip()
+            short = full.split()[0]
+            headers[short] = full
+    return headers
