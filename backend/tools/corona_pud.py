@@ -468,14 +468,11 @@ def corona_classify_pud(genome_nt: str, top_n: int = 5) -> dict:
             for h in top:
                 acc = h["accession"].split(".")[0]
                 row = db.execute(
-                    "SELECT family, subfamily, genus, subgenus, species FROM species "
-                    "WHERE species LIKE ? LIMIT 1",
-                    (f"%{acc}%",)
+                    "SELECT family, subfamily, genus, subgenus, species, virus_name "
+                    "FROM vmr_accessions WHERE accession = ? LIMIT 1",
+                    (acc,)
                 ).fetchone()
-                if row:
-                    h["taxonomy"] = dict(row)
-                else:
-                    h["taxonomy"] = {}
+                h["taxonomy"] = dict(row) if row else {}
 
     best_tax = top[0].get("taxonomy", {})
 
@@ -483,6 +480,7 @@ def corona_classify_pud(genome_nt: str, top_n: int = 5) -> dict:
         "pp1ab_length": len(pp1ab),
         "domains_found": list(query_domains.keys()),
         "domain_lengths": {k: len(v) for k, v in query_domains.items()},
+        "_query_domain_sequences": dict(query_domains),  # consumed by agent.py for region capture
         "top_hits": top,
         "best_hit": {
             "accession": best["accession"],
