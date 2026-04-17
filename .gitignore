@@ -12,6 +12,8 @@ data/db/
 data/taxonomy.db
 data/vectordb/
 data/cache.db
+data/genus_reports/
+data/corona_only.txt
 
 # HMM profiles (rebuild with scripts/build_family_hmms.py and build_corona_hmms.py)
 # Keep CoV_5domains.hmm (Coronaviridae) and hmm_targets.json in repo

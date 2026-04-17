@@ -31,6 +31,21 @@
     .history-item .hi-id { font-weight: 600; color: #1a6b3a; }
     .history-item .hi-tax { color: #495057; }
     .history-item .hi-time { color: #6c757d; font-size: 0.75rem; }
+    /* Family Criteria */
+    .criteria-level { border-left: 3px solid #dee2e6; padding-left: 12px; margin-bottom: 12px; }
+    .criteria-level.species { border-color: #198754; }
+    .criteria-level.genus { border-color: #0d6efd; }
+    .criteria-level.subfamily { border-color: #6f42c1; }
+    .criteria-level-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+    .criteria-level.species .criteria-level-label { color: #198754; }
+    .criteria-level.genus .criteria-level-label { color: #0d6efd; }
+    .criteria-level.subfamily .criteria-level-label { color: #6f42c1; }
+    .criteria-tag { display: inline-block; font-size: 0.72rem; padding: 1px 6px; border-radius: 3px; margin: 1px 2px; }
+    .criteria-tag.method { background: #e8f5e9; color: #2e7d32; }
+    .criteria-tag.region { background: #e3f2fd; color: #1565c0; }
+    .criteria-tag.threshold { background: #fff3e0; color: #e65100; font-weight: 600; }
+    .criteria-desc { font-size: 0.8rem; color: #495057; margin-top: 4px; line-height: 1.4; }
+    .criteria-note { font-size: 0.78rem; color: #6c757d; font-style: italic; margin-top: 8px; border-top: 1px solid #eee; padding-top: 6px; }
   </style>
 </head>
 <body>
@@ -322,7 +337,7 @@ async function lookupFamily() {
   if (!name) return;
   const el = document.getElementById('family-result');
   el.style.display = 'block';
-  el.innerHTML = '<span class="text-muted">Loading…</span>';
+  el.innerHTML = '<span class="text-muted">Loading...</span>';
   try {
     const res = await fetch(`${API}/family/${encodeURIComponent(name)}`);
     if (!res.ok) {
@@ -331,10 +346,61 @@ async function lookupFamily() {
       return;
     }
     const data = await res.json();
-    el.innerHTML = `<pre class="small mb-0" style="max-height:200px;overflow:auto">${JSON.stringify(data, null, 2)}</pre>`;
+    el.innerHTML = renderCriteria(data);
   } catch(e) {
     el.innerHTML = `<span class="text-danger">${e}</span>`;
   }
+}
+
+function renderCriteria(data) {
+  let html = `<div class="mb-1"><strong>${data.family}</strong>`;
+  if (data.reference_gene) html += ` <span class="criteria-tag region">ref: ${data.reference_gene}</span>`;
+  html += `</div>`;
+
+  const levels = [
+    { key: 'species_demarcation', label: 'Species', cls: 'species' },
+    { key: 'genus_demarcation', label: 'Genus', cls: 'genus' },
+    { key: 'subfamily_demarcation', label: 'Subfamily', cls: 'subfamily' },
+  ];
+
+  let hasAny = false;
+  for (const lv of levels) {
+    const d = data[lv.key];
+    if (!d) continue;
+    hasAny = true;
+    html += `<div class="criteria-level ${lv.cls}">`;
+    html += `<div class="criteria-level-label">${lv.label} demarcation</div>`;
+
+    // Method
+    if (d.primary_method) html += `<span class="criteria-tag method">${d.primary_method}</span>`;
+
+    // Regions
+    if (d.regions && d.regions.length)
+      for (const r of d.regions) html += `<span class="criteria-tag region">${r}</span>`;
+
+    // Thresholds
+    if (d.thresholds && Object.keys(d.thresholds).length) {
+      html += `<div style="margin-top:3px">`;
+      for (const [k, v] of Object.entries(d.thresholds)) {
+        const label = k.replace(/_/g, ' ');
+        html += `<span class="criteria-tag threshold">${label}: ${v}</span> `;
+      }
+      html += `</div>`;
+    }
+
+    // Description
+    if (d.description)
+      html += `<div class="criteria-desc">${d.description}</div>`;
+
+    html += `</div>`;
+  }
+
+  if (!hasAny) {
+    html += `<div class="text-muted small mt-1">No explicit demarcation criteria available for this family.</div>`;
+  }
+
+  if (data.notes) html += `<div class="criteria-note">${data.notes}</div>`;
+  return html;
 }
 
 function buildReasoningSummary(result) {

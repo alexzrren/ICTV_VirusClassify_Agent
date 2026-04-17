@@ -49,13 +49,16 @@ _jobs: dict[str, JobResponse] = {}
 _step_queues: dict[str, asyncio.Queue] = {}
 _job_tasks: dict[str, asyncio.Task] = {}
 
+# Limit concurrent classification tasks (each holds an LLM session)
+MAX_CONCURRENT = 8
+_classify_semaphore = asyncio.Semaphore(MAX_CONCURRENT)
+
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
 
 
 # ── Background classification task ──────────────────────────────────────────
 
 async def _run_classification(job_id: str, req: ClassifyRequest):
-    _jobs[job_id].status = JobStatus.running
     queue = asyncio.Queue()
     _step_queues[job_id] = queue
 
@@ -64,17 +67,19 @@ async def _run_classification(job_id: str, req: ClassifyRequest):
         await queue.put(text)
 
     try:
-        result, steps = await classify_sequence(
-            fasta=req.fasta,
-            max_steps=req.max_steps,
-            step_callback=on_step,
-            family_hint=req.family_hint,
-        )
-        _jobs[job_id].result = result
-        _jobs[job_id].status = JobStatus.done
-        # Save to cache
-        if result:
-            cache_put(req.fasta, result)
+        async with _classify_semaphore:
+            _jobs[job_id].status = JobStatus.running
+            result, steps = await classify_sequence(
+                fasta=req.fasta,
+                max_steps=req.max_steps,
+                step_callback=on_step,
+                family_hint=req.family_hint,
+            )
+            _jobs[job_id].result = result
+            _jobs[job_id].status = JobStatus.done
+            # Save to cache
+            if result:
+                cache_put(req.fasta, result)
     except asyncio.CancelledError:
         _jobs[job_id].status = JobStatus.error
         _jobs[job_id].error = "Cancelled by user"
@@ -90,7 +95,13 @@ async def _run_classification(job_id: str, req: ClassifyRequest):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "families_in_criteria": len(list_families())}
+    running = MAX_CONCURRENT - _classify_semaphore._value
+    return {
+        "status": "ok",
+        "families_in_criteria": len(list_families()),
+        "running_jobs": running,
+        "max_concurrent": MAX_CONCURRENT,
+    }
 
 
 @app.post("/classify")
@@ -205,10 +216,26 @@ def get_family_criteria(
     """Return ICTV demarcation criteria for a virus family."""
     crit = get_criteria(family_name)
     if not crit:
+        from difflib import get_close_matches
         families = list_families()
+        # Match against both lowercase keys and title-case display names
+        candidates = families + [f.title() for f in families]
+        suggestions = get_close_matches(family_name, candidates, n=3, cutoff=0.6)
+        # Deduplicate and normalize to title-case
+        seen = set()
+        unique = []
+        for s in suggestions:
+            t = s.title()
+            if t.lower() not in seen:
+                seen.add(t.lower())
+                unique.append(t)
+        if unique:
+            hint = f" Did you mean: {', '.join(unique)}?"
+        else:
+            hint = " Please check the spelling (e.g. Flaviviridae, Coronaviridae)."
         raise HTTPException(
             status_code=404,
-            detail=f"Family '{family_name}' not found. Available: {families[:20]}",
+            detail=f"Family '{family_name}' not found.{hint}",
         )
     if level == "all":
         return crit
