@@ -309,14 +309,24 @@ TOOLS = [
 
 # ── Tool execution ───────────────────────────────────────────────────────────
 
-# Cache reference sequences fetched during a classification run so they can
-# be auto-injected into downstream tools (extract_target_region, pairwise id)
-# without flowing back through the LLM context.
-_ref_seq_cache: dict[str, str] = {}
+def _execute_tool(
+    name: str,
+    inputs: dict,
+    ref_cache: dict[str, str] | None = None,
+    region_store: list[dict] | None = None,
+) -> str:
+    """Dispatch tool call and return result as JSON string.
 
-
-def _execute_tool(name: str, inputs: dict) -> str:
-    """Dispatch tool call and return result as JSON string."""
+    ref_cache: per-job cache for reference sequences, avoiding cross-job
+    contamination when running concurrent classifications.
+    region_store: per-job list capturing extracted protein/nt domain sequences
+    that were actually used for distance computations. Each entry is a dict
+    {source, region, seq_type ('aa'|'nt'), length, sequence}.
+    """
+    if ref_cache is None:
+        ref_cache = {}
+    if region_store is None:
+        region_store = []
     try:
         if name == "blast_search":
             seq = inputs["sequence"].replace("\n", "").replace(" ", "")
@@ -444,7 +454,7 @@ def _execute_tool(name: str, inputs: dict) -> str:
                     if acc.lower() in header.lower():
                         clean_seq = seq.replace("\n", "")
                         # Cache full sequence for auto-injection into downstream tools
-                        _ref_seq_cache[header.split()[0]] = clean_seq
+                        ref_cache[header.split()[0]] = clean_seq
                         return json.dumps({
                             "accession": header.split()[0],
                             "header": header[:200],
@@ -523,6 +533,17 @@ def _execute_tool(name: str, inputs: dict) -> str:
             genome_nt = inputs["genome_nt"].replace("\n", "").replace(" ", "")
             top_n = int(inputs.get("top_n", 5))
             result = corona_classify_pud(genome_nt, top_n=top_n)
+            # Capture extracted query domain sequences for the result file,
+            # then strip them from the model-facing payload (large, redundant).
+            qd = result.pop("_query_domain_sequences", None) or {}
+            for region, aa in qd.items():
+                region_store.append({
+                    "source": "query",
+                    "region": region,
+                    "seq_type": "aa",
+                    "length": len(aa),
+                    "sequence": aa,
+                })
             return json.dumps(result)
 
         elif name == "extract_target_region":
@@ -532,7 +553,7 @@ def _execute_tool(name: str, inputs: dict) -> str:
             source_label = "query"
             if ref_accession:
                 # Reference mode: resolve cached full-length sequence.
-                genome_nt = _ref_seq_cache.get(ref_accession, "")
+                genome_nt = ref_cache.get(ref_accession, "")
                 if not genome_nt:
                     # Fallback: scan reference FASTA files for the accession.
                     ref_dir = Path(__file__).resolve().parent.parent / "data" / "references"
@@ -545,7 +566,7 @@ def _execute_tool(name: str, inputs: dict) -> str:
                         for header, seq in parse_fasta(fasta_file.read_text()).items():
                             if ref_accession.lower() in header.lower():
                                 genome_nt = seq.replace("\n", "")
-                                _ref_seq_cache[header.split()[0]] = genome_nt
+                                ref_cache[header.split()[0]] = genome_nt
                                 break
                         if genome_nt:
                             break
@@ -565,6 +586,14 @@ def _execute_tool(name: str, inputs: dict) -> str:
                 return json.dumps({
                     "error": f"No target regions extracted for {family}",
                     "available_families": list(avail.keys()),
+                })
+            for region, aa in regions.items():
+                region_store.append({
+                    "source": source_label,
+                    "region": region,
+                    "seq_type": "aa",
+                    "length": len(aa),
+                    "sequence": aa,
                 })
             return json.dumps({
                 "source": source_label,
@@ -593,7 +622,7 @@ def _execute_tool(name: str, inputs: dict) -> str:
                 })
 
             # 2. Resolve reference genome
-            ref_nt = _ref_seq_cache.get(ref_accession, "")
+            ref_nt = ref_cache.get(ref_accession, "")
             if not ref_nt:
                 ref_dir = Path(__file__).resolve().parent.parent / "data" / "references"
                 for fam_dir in ref_dir.iterdir():
@@ -605,7 +634,7 @@ def _execute_tool(name: str, inputs: dict) -> str:
                     for header, seq in parse_fasta(fasta_file.read_text()).items():
                         if ref_accession.lower() in header.lower():
                             ref_nt = seq.replace("\n", "")
-                            _ref_seq_cache[header.split()[0]] = ref_nt
+                            ref_cache[header.split()[0]] = ref_nt
                             break
                     if ref_nt:
                         break
@@ -620,6 +649,31 @@ def _execute_tool(name: str, inputs: dict) -> str:
                 return json.dumps({
                     "error": f"No target regions extracted from reference {ref_accession}",
                 })
+
+            # Capture all extracted sequences (query + reference, aa + nt)
+            for region_name, q_reg in query_regions.items():
+                if q_reg.protein:
+                    region_store.append({
+                        "source": "query", "region": region_name, "seq_type": "aa",
+                        "length": len(q_reg.protein), "sequence": q_reg.protein,
+                    })
+                if q_reg.nucleotide:
+                    region_store.append({
+                        "source": "query", "region": region_name, "seq_type": "nt",
+                        "length": len(q_reg.nucleotide), "sequence": q_reg.nucleotide,
+                    })
+            for region_name, r_reg in ref_regions.items():
+                ref_label = f"reference:{ref_accession}"
+                if r_reg.protein:
+                    region_store.append({
+                        "source": ref_label, "region": region_name, "seq_type": "aa",
+                        "length": len(r_reg.protein), "sequence": r_reg.protein,
+                    })
+                if r_reg.nucleotide:
+                    region_store.append({
+                        "source": ref_label, "region": region_name, "seq_type": "nt",
+                        "length": len(r_reg.nucleotide), "sequence": r_reg.nucleotide,
+                    })
 
             # 4. Compute pairwise identity for each matching region (both aa AND nt)
             comparisons = {}
@@ -705,6 +759,9 @@ Your task is to classify a virus sequence by strictly following ICTV official de
 - **When the ICTV threshold is on whole genome** (e.g. Papillomaviridae L1 nt identity, Polyomaviridae genome identity), use blast_pident or global_pairwise_identity from blast_and_compare directly.
 - **Budget your tool calls.** Simple species-level confirmations need ~3 tool calls. Region-based p-distance classifications need ~4 calls (blast_and_compare → get_criteria → compare_query_to_reference → lookup_taxonomy). If you find yourself beyond 8 calls without conclusion, stop and report what you have.
 - For Coronaviridae sequences >20 kb, call corona_pud_classify — it does the full PUD pipeline in one shot.
+- **corona_pud_classify is authoritative for Coronaviridae.** When it returns `best_hit.rank == "same_species"`, you MUST copy `top_hits[0].taxonomy` VERBATIM into the final JSON (family, subfamily, genus, subgenus, species). Do NOT translate, re-derive, or substitute names. Do NOT invent references like "HKU3" that are not in the tool output. Quote the accession and PUD value exactly as returned.
+- **NEVER fabricate tool results.** Every numeric value in your evidence (PUD, identity %, p-distance) MUST come from a tool call you actually executed in this session. If you have not called `corona_pud_classify`, you have NO PUD value — do NOT write "PUD=0.000" or any other made-up number. Writing fake tool outputs is the worst possible failure mode. If a required tool was not called, call it now before answering.
+- **Mandatory first call for any Coronaviridae sequence ≥20 kb: corona_pud_classify.** Do not output any final classification until you have invoked this tool and received its JSON response. The post-processing layer will REPLACE your taxonomy with the tool's authoritative output if it disagrees.
 - Cite the EXACT ICTV criterion and threshold you applied, and the EXACT computed value from your tool calls.
 - Confidence levels: High (computed value clearly above/below threshold), Medium (within ±5% of threshold), Low (required computation failed or partial sequence).
 - **Novel species heuristic for families WITHOUT numerical thresholds** (e.g. Astroviridae, Caliciviridae, Orthoherpesviridae, Pneumoviridae, Poxviridae, etc.): when get_criteria returns no numerical threshold, use these BLAST-based rules to judge novel_species:
@@ -740,7 +797,7 @@ At the end, ALWAYS output a JSON block (inside ```json ... ```) with this EXACT 
   "query_id": "...",
   "taxonomy": {
     "realm": "...", "kingdom": "...", "phylum": "...", "class": "...",
-    "order": "...", "family": "...", "subfamily": "...", "genus": "...", "species": "..."
+    "order": "...", "family": "...", "subfamily": "...", "genus": "...", "subgenus": "...", "species": "..."
   },
   "confidence": "High|Medium|Low",
   "novel_species": true/false,
@@ -749,7 +806,18 @@ At the end, ALWAYS output a JSON block (inside ```json ... ```) with this EXACT 
   ],
   "reasoning": "Brief explanation of classification logic"
 }
-```"""
+```
+
+## CRITICAL: Taxonomy completeness rules
+- **The "subgenus" field MUST be populated whenever the ICTV assigns one.** Check the `subgenus` column returned by `lookup_taxonomy` — if it is non-empty, copy it verbatim into the output JSON. Among Nidovirales families, **Coronaviridae** (e.g. Sarbecovirus, Embecovirus, Rhinacovirus, Decacovirus), **Tobaniviridae**, and **Arteriviridae** have subgenera. Most other families do NOT define subgenus in MSL40; if `lookup_taxonomy.subgenus` is empty/null, leave the output field as empty string or null — do NOT invent a name.
+- **Same for "subfamily"** — copy from lookup_taxonomy when present.
+
+## CRITICAL: Species naming rules
+- **The "species" field MUST use the official ICTV binomial name from lookup_taxonomy results (MSL40).** Examples: "Betacoronavirus muris", "Orthoflavivirus apoiense", "Orthohantavirus hantanense".
+- **NEVER use GenBank common names** like "Rat coronavirus Ri19", "Murine hepatitis virus", "Hantaan virus" — these are NOT ICTV species names.
+- **NEVER use deprecated/old ICTV names** like "Betacoronavirus 1" or "Human coronavirus OC43" — always use the current MSL40 name from lookup_taxonomy.
+- **For novel species** (novel_species=true): use the format "Genus sp. (description)" — e.g. "Betacoronavirus sp. (novel, related to B. muris)".
+- **Always call lookup_taxonomy** before writing the final JSON to confirm the exact ICTV species name. Copy-paste the species name from the lookup result, do not rephrase it."""
 
 
 # ── Agent loop ───────────────────────────────────────────────────────────────
@@ -793,6 +861,10 @@ async def classify_sequence(
     raw_seq = sequence.replace("\n", "").replace(" ", "")
 
     step_logs: list[str] = []
+    # Per-job cache for reference sequences (isolated from concurrent jobs)
+    job_ref_cache: dict[str, str] = {}
+    # Per-job store for extracted domain sequences (for output to result file)
+    job_region_store: list[dict] = []
 
     def log(msg: str):
         step_logs.append(msg)
@@ -836,11 +908,52 @@ async def classify_sequence(
 
     final_result: Optional[ClassifyResult] = None
     tool_result_store: list[tuple[str, str]] = []  # (tool_name, full_result_json)
+    token_usage = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "api_calls": 0,
+    }
 
     import asyncio
     import re as _re
 
     _in_think_block = False  # track <think> blocks that span multiple steps
+    _continuation_nudges = 0  # how many times we've asked the model to continue
+    _MAX_CONTINUATION_NUDGES = 2
+
+    def _classification_incomplete() -> str:
+        """Return a reason string if more work is needed, empty string otherwise.
+        Used to decide whether to inject a continuation message when the model
+        end_turn's prematurely."""
+        if final_result is None or not (final_result.taxonomy.family or "").strip():
+            return "no family identified — you must run blast_and_compare"
+        fam = (final_result.taxonomy.family or "").lower()
+        called = {name for name, _ in tool_result_store}
+        if fam == "coronaviridae" and len(raw_seq) > 20000:
+            if "corona_pud_classify" not in called:
+                return (
+                    "Coronaviridae ≥20 kb requires corona_pud_classify. "
+                    "Call it NOW with the full genome_nt."
+                )
+        region_based = {
+            "flaviviridae", "paramyxoviridae", "picornaviridae", "hepeviridae",
+            "papillomaviridae",
+        }
+        if fam in region_based:
+            if "compare_query_to_reference" not in called:
+                return (
+                    f"{final_result.taxonomy.family} uses region-specific "
+                    "p-distance thresholds. Call compare_query_to_reference "
+                    "with the top BLAST hit's accession as ref_accession."
+                )
+        if not (final_result.taxonomy.species or "").strip():
+            return (
+                "Species field is empty. Call lookup_taxonomy on the top BLAST "
+                "hit's accession and output the final JSON."
+            )
+        return ""
 
     def _strip_think(text: str) -> tuple[str, bool]:
         """Remove <think>...</think> blocks, handling splits across steps.
@@ -874,6 +987,17 @@ async def classify_sequence(
             messages=messages,
             thinking={"type": "disabled"},
         )
+
+        # Accumulate token usage from this API round-trip
+        try:
+            u = response.usage
+            token_usage["api_calls"] += 1
+            token_usage["input_tokens"] += getattr(u, "input_tokens", 0) or 0
+            token_usage["output_tokens"] += getattr(u, "output_tokens", 0) or 0
+            token_usage["cache_read_input_tokens"] += getattr(u, "cache_read_input_tokens", 0) or 0
+            token_usage["cache_creation_input_tokens"] += getattr(u, "cache_creation_input_tokens", 0) or 0
+        except Exception:
+            pass
 
         # Collect text content for logging
         text_parts = []
@@ -914,6 +1038,29 @@ async def classify_sequence(
         log(f"[Debug] stop_reason={response.stop_reason}, tool_uses={len(tool_uses)}")
 
         if response.stop_reason == "end_turn":
+            reason = _classification_incomplete()
+            if reason and _continuation_nudges < _MAX_CONTINUATION_NUDGES:
+                _continuation_nudges += 1
+                log(
+                    f"[Continuation] Model ended early (nudge {_continuation_nudges}/"
+                    f"{_MAX_CONTINUATION_NUDGES}): {reason}"
+                )
+                if step_callback:
+                    await step_callback(
+                        f"[Continuation] Agent stopped early — asking it to "
+                        f"continue: {reason}"
+                    )
+                messages.append({
+                    "role": "user",
+                    "content": (
+                        f"You stopped before completing the classification. "
+                        f"Problem: {reason}\n\n"
+                        f"Continue the workflow now. Do NOT apologise or explain; "
+                        f"just make the required tool call(s) and then output the "
+                        f"final JSON block."
+                    ),
+                })
+                continue
             break
 
         if response.stop_reason == "tool_use":
@@ -937,7 +1084,9 @@ async def classify_sequence(
                     if not inputs.get("ref_accession"):
                         inputs["genome_nt"] = _full_seq
 
-                result_str = await asyncio.to_thread(_execute_tool, tu.name, inputs)
+                result_str = await asyncio.to_thread(
+                    _execute_tool, tu.name, inputs, job_ref_cache, job_region_store
+                )
                 tool_result_store.append((tu.name, result_str))
                 log(f"[Tool result] {result_str[:200]}")
 
@@ -952,6 +1101,210 @@ async def classify_sequence(
     # If no structured result extracted, try to build one from tool results
     if final_result is None:
         final_result = _build_result_from_logs(query_id, step_logs, tool_result_store)
+
+    # Generic BLAST→VMR fallback: if the agent didn't produce a complete
+    # taxonomy (model bailed early or hallucinated), use the top blast_and_compare
+    # hit's VMR record to fill in missing fields. This also enables the
+    # Coronaviridae-specific override below.
+    try:
+        if not (final_result.taxonomy.family or "").strip():
+            top_blast_acc = None
+            top_blast_pid = None
+            for tool_name, result_str in tool_result_store:
+                if tool_name not in ("blast_and_compare", "blast_search"):
+                    continue
+                try:
+                    payload = json.loads(result_str)
+                except Exception:
+                    continue
+                hits = payload.get("hits") or []
+                # Skip self-match if it equals query_id (rare); take first non-empty
+                for h in hits:
+                    sid = (h.get("subject_id") or "").split(".")[0]
+                    if sid:
+                        top_blast_acc = sid
+                        top_blast_pid = h.get("global_pairwise_identity") or h.get("blast_pident")
+                        break
+                if top_blast_acc:
+                    break
+            row = None
+            if top_blast_acc:
+                import sqlite3 as _sqlite3
+                tax_db = Path(__file__).resolve().parent.parent / "data" / "taxonomy.db"
+                if tax_db.exists():
+                    with _sqlite3.connect(str(tax_db)) as _db:
+                        _db.row_factory = _sqlite3.Row
+                        row = _db.execute(
+                            "SELECT family, subfamily, genus, subgenus, species, "
+                            "virus_name FROM vmr_accessions WHERE accession = ? LIMIT 1",
+                            (top_blast_acc,)
+                        ).fetchone()
+            if row:
+                    log(
+                        f"[Override] Empty model taxonomy → using VMR record of "
+                        f"top BLAST hit {top_blast_acc} (pid={top_blast_pid}): "
+                        f"{row['family']}/{row['genus']}/{row['species']}"
+                    )
+                    final_result.taxonomy.family = row["family"] or None
+                    final_result.taxonomy.subfamily = row["subfamily"] or None
+                    final_result.taxonomy.genus = row["genus"] or None
+                    final_result.taxonomy.subgenus = row["subgenus"] or None
+                    final_result.taxonomy.species = row["species"] or None
+                    if final_result.confidence in ("Unknown", "Low", ""):
+                        final_result.confidence = "Medium"
+                    if not final_result.reasoning:
+                        final_result.reasoning = (
+                            f"Top BLAST hit {top_blast_acc} ({row['virus_name']}) "
+                            f"at {top_blast_pid}% identity. Taxonomy assigned from "
+                            f"the VMR MSL40 record of this accession. (Generated "
+                            f"by post-processing because the agent did not "
+                            f"produce a complete classification.)"
+                        )
+    except Exception as e:
+        log(f"[Override] generic BLAST→VMR fallback failed: {e}")
+
+    # Tool-override: when the agent claims Coronaviridae, the deterministic
+    # DEmARC PUD pipeline is authoritative. Some models (notably MiniMax) skip
+    # the tool entirely and hallucinate PUD numbers / species names. Defense:
+    # if the final result names Coronaviridae, run corona_pud_classify ourselves
+    # (or reuse cached output) and overwrite the taxonomy from its best_hit.
+    try:
+        claims_corona = (final_result.taxonomy.family or "").lower() == "coronaviridae"
+        if claims_corona and len(raw_seq) > 20000:
+            # Look for an existing corona_pud_classify call in this run
+            payload = None
+            for tool_name, result_str in tool_result_store:
+                if tool_name == "corona_pud_classify":
+                    try:
+                        payload = json.loads(result_str)
+                    except Exception:
+                        payload = None
+                    break
+            # If the model never called it, run it now
+            if payload is None or "top_hits" not in payload:
+                from .tools.corona_pud import corona_classify_pud
+                log("[Override] corona_pud_classify was NOT called by the model — "
+                    "running it now to verify the Coronaviridae classification.")
+                payload = corona_classify_pud(raw_seq, top_n=5)
+                # Capture domain sequences from the forced run
+                qd = payload.pop("_query_domain_sequences", None) or {}
+                for region, aa in qd.items():
+                    job_region_store.append({
+                        "source": "query", "region": region, "seq_type": "aa",
+                        "length": len(aa), "sequence": aa,
+                    })
+
+            if payload and "top_hits" in payload and payload["top_hits"]:
+                best = payload["top_hits"][0]
+                best_tax = best.get("taxonomy") or {}
+                rank = (payload.get("best_hit") or {}).get("rank")
+                if best_tax.get("species") and rank in (
+                    "same_species", "same_subgenus", "same_genus", "same_subfamily"
+                ):
+                    tool_species = best_tax["species"].strip()
+                    model_species = (final_result.taxonomy.species or "").strip()
+                    model_genus = (final_result.taxonomy.genus or "").strip()
+                    tool_genus = (best_tax.get("genus") or "").strip()
+                    model_novel = bool(final_result.novel_species)
+                    # Trigger override if ANY of:
+                    #  - model genus disagrees with tool genus
+                    #  - model used same_species name but rank says otherwise
+                    #    (novel-ness mis-classified)
+                    #  - model marked novel=False for non-same_species rank
+                    needs_override = (
+                        model_genus.lower() != tool_genus.lower()
+                        or (rank != "same_species" and not model_novel)
+                        or (rank == "same_species" and model_species.lower() != tool_species.lower())
+                    )
+                    if needs_override:
+                        log(
+                            f"[Override] Model said genus='{model_genus}', "
+                            f"species='{model_species}', novel={model_novel}. "
+                            f"corona_pud_classify rank={rank}, PUD={best.get('pud_pct','?')}%, "
+                            f"closest={tool_species}. Forcing tool answer."
+                        )
+                        final_result.taxonomy.family = "Coronaviridae"
+                        final_result.taxonomy.subfamily = best_tax.get("subfamily") or None
+                        if rank in ("same_species", "same_subgenus", "same_genus"):
+                            final_result.taxonomy.genus = best_tax.get("genus") or None
+                        if rank in ("same_species", "same_subgenus"):
+                            final_result.taxonomy.subgenus = best_tax.get("subgenus") or None
+                        if rank == "same_species":
+                            final_result.taxonomy.species = tool_species
+                            final_result.novel_species = False
+                        else:
+                            # Novel species: rewrite placeholder so its genus
+                            # name matches the override (model often picks wrong
+                            # genus for "<Genus> sp. (...)").
+                            new_genus = final_result.taxonomy.genus or "Coronaviridae"
+                            new_subg = final_result.taxonomy.subgenus
+                            descriptor = f"{new_subg} subgenus" if new_subg else f"close to {best.get('accession','?')}"
+                            final_result.taxonomy.species = (
+                                f"{new_genus} sp. (novel, {descriptor})"
+                            )
+                            final_result.novel_species = True
+                        # Replace evidence with the tool's actual values
+                        final_result.evidence = [Evidence(
+                            method="corona_pud_classify",
+                            region="5 replicase domains (3CLpro+NiRAN+RdRp+ZBD+HEL1)",
+                            value=best.get("pud_pct"),
+                            threshold=7.5,
+                            conclusion=(
+                                f"PUD={best.get('pud_pct')}% vs {best.get('accession')} "
+                                f"({best_tax.get('virus_name','')}); rank={rank}"
+                            ),
+                        )]
+                        # Replace reasoning text with tool-grounded version to
+                        # avoid hallucinated accessions/descriptions leaking
+                        # from the model's narrative.
+                        pud_pct = best.get("pud_pct", 0.0)
+                        best_acc = best.get("accession", "?")
+                        best_virus = best_tax.get("virus_name", "")
+                        verdict = {
+                            "same_species": (
+                                f"below the 7.5% species threshold → same species "
+                                f"as {best_tax.get('species','?')}."
+                            ),
+                            "same_subgenus": (
+                                f"exceeds the 7.5% species threshold but is within "
+                                f"the 14.2% subgenus threshold → novel species "
+                                f"within subgenus {best_tax.get('subgenus','?')}."
+                            ),
+                            "same_genus": (
+                                f"exceeds the 14.2% subgenus threshold but is "
+                                f"within the 36% genus threshold → novel species "
+                                f"within genus {best_tax.get('genus','?')}."
+                            ),
+                            "same_subfamily": (
+                                f"exceeds the 36% genus threshold → novel genus "
+                                f"within subfamily {best_tax.get('subfamily','?')}."
+                            ),
+                        }.get(rank, f"rank={rank}.")
+                        final_result.reasoning = (
+                            f"DEmARC PUD on 5 concatenated replicase domains "
+                            f"(3CLpro+NiRAN+RdRp+ZBD+HEL1) = {pud_pct}% vs "
+                            f"closest reference {best_acc} "
+                            f"({best_virus}). This {verdict} "
+                            f"Taxonomy derived from the VMR MSL40 record of "
+                            f"{best_acc}. (This reasoning was generated by the "
+                            f"post-processing layer because the model's output "
+                            f"did not match the deterministic tool result.)"
+                        )
+    except Exception as e:
+        log(f"[Override] post-hoc corona_pud check failed: {e}")
+
+    # Deduplicate region_store (multiple tool calls may extract the same query
+    # regions); keep first occurrence per (source, region, seq_type).
+    seen_keys: set[tuple] = set()
+    deduped: list[dict] = []
+    for entry in job_region_store:
+        key = (entry["source"], entry["region"], entry["seq_type"])
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        deduped.append(entry)
+    final_result.extracted_regions = deduped
+    final_result.token_usage = token_usage
 
     return final_result, step_logs
 
@@ -980,6 +1333,9 @@ def _build_result_from_logs(
         all_tool_data,
     )
     if tax_match:
+        # Try to also pick up subgenus/subfamily from the same JSON object.
+        sub_match = re.search(r'"subgenus":\s*"([^"]*)"', all_tool_data)
+        subfam_match = re.search(r'"subfamily":\s*"([^"]*)"', all_tool_data)
         taxonomy = TaxonomyResult(
             realm=tax_match.group(1) or None,
             kingdom=tax_match.group(2) or None,
@@ -987,7 +1343,9 @@ def _build_result_from_logs(
             **{"class": tax_match.group(4) or None},
             order=tax_match.group(5) or None,
             family=tax_match.group(6) or None,
+            subfamily=(subfam_match.group(1) if subfam_match else None) or None,
             genus=tax_match.group(7) or None,
+            subgenus=(sub_match.group(1) if sub_match else None) or None,
             species=tax_match.group(8) or None,
         )
         confidence = "Medium"
@@ -1052,6 +1410,7 @@ def _parse_result(data: dict, query_id: str) -> ClassifyResult:
         family=tax.get("family"),
         subfamily=tax.get("subfamily"),
         genus=tax.get("genus"),
+        subgenus=tax.get("subgenus"),
         species=tax.get("species"),
     )
     evidence = [

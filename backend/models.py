@@ -24,6 +24,7 @@ class TaxonomyResult(BaseModel):
     family: Optional[str] = None
     subfamily: Optional[str] = None
     genus: Optional[str] = None
+    subgenus: Optional[str] = None
     species: Optional[str] = None
     genome: Optional[str] = None
 
@@ -48,6 +49,8 @@ class ClassifyResult(BaseModel):
     reasoning: str = ""
     top_blast_hits: list[dict] = []
     criteria_used: Optional[dict] = None
+    extracted_regions: list[dict] = []  # [{source, region, type, sequence}]
+    token_usage: dict = {}  # {input_tokens, output_tokens, cache_read, cache_created, api_calls}
 
 
 class JobStatus(str, Enum):
