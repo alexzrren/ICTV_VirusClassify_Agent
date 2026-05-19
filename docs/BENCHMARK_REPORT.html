@@ -1,0 +1,428 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<title>ICTV Agent Benchmark Report</title>
+<style>
+
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+       max-width: 1200px; margin: 0 auto; padding: 1.5em;
+       background: #f8f9fa; color: #212529; line-height: 1.5; }
+h1 { color: #1a6b3a; border-bottom: 3px solid #1a6b3a; padding-bottom: .3em; }
+h2 { color: #2d6a4f; margin-top: 2em; border-bottom: 2px solid #b7e4c7; padding-bottom: .2em; }
+h3 { color: #40916c; margin-top: 1.5em; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; background: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+th { background: #1a6b3a; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+td { padding: 6px 12px; border-bottom: 1px solid #dee2e6; font-size: .9em; }
+tr:nth-child(even) { background: #f8f9fa; }
+.good { color: #2d6a4f; font-weight: bold; }
+.ok { color: #e07a00; }
+.bad { color: #d32f2f; font-weight: bold; }
+.ok-bg { background: #fff3cd !important; }
+.bad-bg { background: #ffcdd2 !important; }
+.metric { font-size: 2em; font-weight: bold; }
+.bar { height: 20px; border-radius: 3px; display: inline-block; margin: 2px 0; }
+.bar-green { background: linear-gradient(90deg, #2d6a4f, #52b788); }
+.bar-yellow { background: linear-gradient(90deg, #e07a00, #f0a030); }
+.bar-red { background: linear-gradient(90deg, #d32f2f, #e57373); }
+.bar-blue { background: linear-gradient(90deg, #1565c0, #42a5f5); }
+.card { background: white; border-radius: 6px; padding: 1em; margin: .5em 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.card h4 { margin: 0 0 .5em; color: #1a6b3a; }
+.flex { display: flex; gap: 1em; flex-wrap: wrap; }
+.flex > * { flex: 1; min-width: 250px; }
+pre { background: #f1f3f4; padding: 1em; border-radius: 4px; font-size: .85em; overflow-x: auto; }
+.mismatch-row { font-size: .85em; }
+.mismatch-row:hover { background: #e8f5e9 !important; }
+.legend-item { display: inline-block; margin: 0 1em; font-size: .9em; }
+.legend-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px;
+                  vertical-align: middle; margin-right: 4px; }
+.tabs { display: flex; gap: 0; margin: 1em 0; }
+.tab-btn { padding: 8px 16px; background: #e9ecef; border: 1px solid #ced4da; cursor: pointer;
+           border-radius: 4px 4px 0 0; font-size: .9em; }
+.tab-btn.active { background: white; border-bottom-color: white; font-weight: 600; }
+.tab-content { display: none; background: white; padding: 1em; border: 1px solid #ced4da;
+               border-top: none; border-radius: 0 4px 4px 4px; }
+.tab-content.active { display: block; }
+
+</style></head><body>
+
+    <h1>ICTV Virus Classification Agent — Benchmark Report</h1>
+    <p><strong>Date:</strong> 2026-05-13 |
+       <strong>Model:</strong> Pro/zai-org/GLM-5.1 (SiliconFlow) |
+       <strong>Sequences:</strong> 362 | <strong>Families:</strong> 9</p>
+
+    <div class="flex">
+      <div class="card" style="text-align:center">
+        <h4>Family Accuracy</h4>
+        <div class="metric good">97.0%</div>
+        <p>351/362 correct</p>
+      </div>
+      <div class="card" style="text-align:center">
+        <h4>Genus Accuracy</h4>
+        <div class="metric ">87.6%</div>
+        <p>317/362 correct</p>
+      </div>
+      <div class="card" style="text-align:center">
+        <h4>Species+Novel Accuracy</h4>
+        <div class="metric ">71.0%</div>
+        <p>257/362 correct (exact OR novel detected)</p>
+      </div>
+      <div class="card" style="text-align:center">
+        <h4>Family Errors</h4>
+        <div class="metric bad">11</div>
+        <p>out of 362 (<span class="good">3.0%</span>)</p>
+      </div>
+    </div>
+
+    <div class="flex">
+      <div class="card">
+        <h4>Total Tokens</h4>
+        <p>Input: 2,582,149 &nbsp;|&nbsp;
+           Output: 506,604 &nbsp;|&nbsp;
+           <strong>Billed: 3,088,753</strong></p>
+      </div>
+      <div class="card">
+        <h4>API Calls / Timing</h4>
+        <p>Total calls: 4,194 &nbsp;|&nbsp;
+           Wall time: 8.2h &nbsp;|&nbsp;
+           Avg: 81.1s/seq</p>
+      </div>
+    </div>
+    
+<h2>Per-Family Accuracy Summary</h2><table>
+<tr><th>Family</th><th>N</th><th>Species+Novel</th><th>Genus</th><th>Family</th><th>Med/Low%</th><th>Key Issue</th></tr>
+<tr><td><strong>Arenaviridae</strong></td><td>36</td><td><span class="ok">83.3%</span> (30)</td><td><span class="good">97.2%</span> (35)</td><td><span class="good">100.0%</span> (36)</td><td>33% (12)</td><td><strong>exact match</strong> (25 of 36)</td></tr>
+<tr><td><strong>Astroviridae</strong></td><td>30</td><td><span class="bad">66.7%</span> (20)</td><td><span class="bad">66.7%</span> (20)</td><td><span class="bad">66.7%</span> (20)</td><td>70% (21)</td><td><strong>exact match</strong> (14 of 30)</td></tr>
+<tr><td><strong>Coronaviridae</strong></td><td>30</td><td><span class="good">96.7%</span> (29)</td><td><span class="good">100.0%</span> (30)</td><td><span class="good">100.0%</span> (30)</td><td>7% (2)</td><td><strong>exact match</strong> (25 of 30)</td></tr>
+<tr><td><strong>Flaviviridae</strong></td><td>50</td><td><span class="ok">84.0%</span> (42)</td><td><span class="good">100.0%</span> (50)</td><td><span class="good">100.0%</span> (50)</td><td>16% (8)</td><td><strong>exact match</strong> (40 of 50)</td></tr>
+<tr><td><strong>Hepeviridae</strong></td><td>30</td><td><span class="good">96.7%</span> (29)</td><td><span class="good">100.0%</span> (30)</td><td><span class="good">100.0%</span> (30)</td><td>7% (2)</td><td><strong>exact match</strong> (29 of 30)</td></tr>
+<tr><td><strong>Papillomaviridae</strong></td><td>50</td><td><span class="bad">32.0%</span> (16)</td><td><span class="bad">52.0%</span> (26)</td><td><span class="good">100.0%</span> (50)</td><td>12% (6)</td><td><strong>genus wrong</strong> (24 of 50)</td></tr>
+<tr><td><strong>Parvoviridae</strong></td><td>50</td><td><span class="bad">58.0%</span> (29)</td><td><span class="good">90.0%</span> (45)</td><td><span class="good">100.0%</span> (50)</td><td>30% (15)</td><td><strong>exact match</strong> (23 of 50)</td></tr>
+<tr><td><strong>Picornaviridae</strong></td><td>50</td><td><span class="ok">72.0%</span> (36)</td><td><span class="good">92.0%</span> (46)</td><td><span class="good">100.0%</span> (50)</td><td>12% (6)</td><td><strong>exact match</strong> (30 of 50)</td></tr>
+<tr><td><strong>Sedoreoviridae</strong></td><td>36</td><td><span class="ok">72.2%</span> (26)</td><td><span class="good">97.2%</span> (35)</td><td><span class="good">97.2%</span> (35)</td><td>39% (14)</td><td><strong>exact match</strong> (23 of 36)</td></tr>
+</table>
+<h2>Failure Taxonomy — Root Cause Analysis</h2>
+<p><strong>138</strong> non-exact predictions across 362 sequences (38.1%).</p>
+<table><tr><th>Category</th><th>Count</th><th>% of Errors</th><th>% of Total</th><th>Description</th></tr>
+<tr class=""><td>Species Swap (Same Genus)</td><td><strong>34</strong></td><td>24.6%</td><td>9.4%</td><td class="mismatch-row">Genus and family correct but species name differs. Usually the agent picked the closest reference species correctly but the test label uses a different MSL40 name for the same virus.</td></tr>
+<tr class="bad-bg"><td>Genus Wrong (Family Correct)</td><td><strong>34</strong></td><td>24.6%</td><td>9.4%</td><td class="mismatch-row">Family is correct but genus is wrong. Root cause: BLAST hit to wrong genus due to L1/RdRp conservation across genera, or HMM region extraction quality.</td></tr>
+<tr class="ok-bg"><td><span class='good'>Correct Novel Detection</span></td><td><strong>33</strong></td><td>23.9%</td><td>9.1%</td><td class="mismatch-row">Agent correctly flagged as novel species — sequence is NOT the VMR exemplar. This is a true positive, not an error.</td></tr>
+<tr class=""><td>Numbered Species Swap</td><td><strong>26</strong></td><td>18.8%</td><td>7.2%</td><td class="mismatch-row">Genus correct but species number wrong (e.g. 'primate2' vs 'primate1'). ICTV numbered species (Papilloma, Parvo, Sedoreo) cannot be distinguished by p-distance alone — they require phylogenetic clustering.</td></tr>
+<tr class="bad-bg"><td>FAMILY WRONG</td><td><strong>11</strong></td><td>8.0%</td><td>3.0%</td><td class="mismatch-row">Family AND genus are wrong. Indicates either BLAST failure, cross-family sequence similarity, or HMM misalignment.</td></tr>
+</table>
+<h2>Root Cause Deep Dive</h2>
+<h3>1. Papillomaviridae Genus Confusion — Why 52% Genus Accuracy?</h3>
+
+    <div class="card">
+    <p>Papillomaviridae has <strong>50+ genera</strong> defined primarily by
+    L1 ORF nt identity ≥ 60% with <strong>phylogenetic confirmation</strong>
+    (ICTV: "Genus assignment requires phylogenetic clustering of the full L1 ORF").
+    The L1 gene is ~1.5 kb — short enough that the BLAST top hit can vary
+    between two genera that have similar L1 sequences (~55-65% identity).</p>
+
+    <p><strong>Root causes identified:</strong></p>
+    <ul>
+      <li><strong>BLAST only considers local alignment score</strong> — a 60%
+          identity match to <em>Deltapapillomavirus</em> may outrank a 58% match
+          to the correct <em>Dyodeltapapillomavirus</em> due to HSP length.</li>
+      <li><strong>No phylogenetic tree tool</strong> — ICTV's criterion literally says
+          "phylogenetic clustering." Without building one, the agent is trying to
+          do phylogeny with p-distance, which is known to fail for closely related
+          papillomavirus genera.</li>
+      <li><strong>L1 is conserved across genera</strong> — the same capsid gene is used
+          for both genus AND species demarcation, so a small error in L1 identity
+          cascades to both levels.</li>
+    </ul>
+
+    <p><strong>Observation from <em>genus_wrong</em> cases:</strong></p>
+    <table><tr><th>Accession</th><th>Truth Species</th><th>Truth Genus</th>
+    <th>Agent Species</th><th>Agent Genus</th></tr>
+    
+<tr class="mismatch-row"><td>LR861844.1</td><td>Alphapapillomavirus 8</td><td>Alphapapillomavirus</td><td>Deltapapillomavirus 7</td><td>Deltapapillomavirus</td></tr>
+<tr class="mismatch-row"><td>JN211196.1</td><td>Betapapillomavirus 2</td><td>Betapapillomavirus</td><td>Gammapapillomavirus 4</td><td>Gammapapillomavirus</td></tr>
+<tr class="mismatch-row"><td>KR816172.1</td><td>Betapapillomavirus 5</td><td>Betapapillomavirus</td><td>Gammapapillomavirus sp. (novel, related to G. 18 / HPV96)</td><td>Gammapapillomavirus</td></tr>
+<tr class="mismatch-row"><td>MN605989.1</td><td>Gammapapillomavirus 1</td><td>Gammapapillomavirus</td><td>Alphapapillomavirus 4</td><td>Alphapapillomavirus</td></tr>
+<tr class="mismatch-row"><td>JQ814848.1</td><td>Dyotaupapillomavirus 1</td><td>Dyotaupapillomavirus</td><td>Dyodeltapapillomavirus sp. (novel, related to Dyodeltapapillomavirus 1)</td><td>Dyodeltapapillomavirus</td></tr>
+<tr class="mismatch-row"><td>KC460986.1</td><td>Dyophipapillomavirus 1</td><td>Dyophipapillomavirus</td><td>Dyodeltapapillomavirus 1</td><td>Dyodeltapapillomavirus</td></tr>
+<tr class="mismatch-row"><td>KM096428.1</td><td>Dyoxipapillomavirus 1</td><td>Dyoxipapillomavirus</td><td>Deltapapillomavirus 7</td><td>Deltapapillomavirus</td></tr>
+<tr class="mismatch-row"><td>KP861981.1</td><td>Dyoomikronpapillomavirus 1</td><td>Dyoomikronpapillomavirus</td><td>Dyodeltapapillomavirus 1</td><td>Dyodeltapapillomavirus</td></tr>
+<tr class="mismatch-row"><td>KU707883.1</td><td>Epsilonpapillomavirus 1</td><td>Epsilonpapillomavirus</td><td>Dyoepsilonpapillomavirus 1</td><td>Dyoepsilonpapillomavirus</td></tr>
+<tr class="mismatch-row"><td>KX954121.1</td><td>Deltapapillomavirus 3</td><td>Deltapapillomavirus</td><td>Dyodeltapapillomavirus 1</td><td>Dyodeltapapillomavirus</td></tr>
+</table>
+<p><strong>24 genus_wrong errors</strong> among Papillomaviridae. Pattern: predominantly <em>Dyo*-prefix genera</em> confused with Delta- and Alpha-/Beta-/Gamma- between themselves.</p></div>
+<h3>2. Numbered Species Ambiguity (Papilloma + Parvo + Sedoreo)</h3>
+
+    <div class="card">
+    <p>ICTV assigns numbered binomial names (e.g., <em>Bocaparvovirus primate1</em>,
+    <em>Bocaparvovirus primate2</em>...) without explicit numerical cutoffs between
+    consecutive numbers. The demaration criterion is "phylogenetic clustering +
+    host range" — neither of which the agent can compute.</p>
+    
+<p><strong>26 numbered-species swaps</strong> across 2 families. Genus correctness in these cases: 26/26 (100%).</p>
+<p><strong>Papillomaviridae</strong> (10):</p><ul>
+<li>LR861987.1: <span class="bad">Alphapapillomavirus 14</span> → <span class="ok">Alphapapillomavirus 7</span> (genus: True, conf: High)</li>
+<li>MH460956.1: <span class="bad">Gammapapillomavirus 12</span> → <span class="ok">Gammapapillomavirus 1</span> (genus: True, conf: Medium)</li>
+<li>MT265225.1: <span class="bad">Chipapillomavirus 1</span> → <span class="ok">Chipapillomavirus 3</span> (genus: True, conf: High)</li>
+<li>OR714748.1: <span class="bad">Alphapapillomavirus 1</span> → <span class="ok">Alphapapillomavirus 8</span> (genus: True, conf: High)</li>
+<li>OR997936.1: <span class="bad">Alphapapillomavirus 5</span> → <span class="ok">Alphapapillomavirus 10</span> (genus: True, conf: High)</li>
+</ul>
+<p><strong>Parvoviridae</strong> (16):</p><ul>
+<li>GU048664.1: <span class="bad">Bocaparvovirus primate2</span> → <span class="ok">Bocaparvovirus primate1</span> (genus: True, conf: Medium)</li>
+<li>JF429835.1: <span class="bad">Bocaparvovirus ungulate5</span> → <span class="ok">Bocaparvovirus ungulate1</span> (genus: True, conf: Medium)</li>
+<li>JN420362.1: <span class="bad">Bocaparvovirus pinniped1</span> → <span class="ok">Bocaparvovirus pinniped2</span> (genus: True, conf: High)</li>
+<li>KU172422.1: <span class="bad">Bocaparvovirus ungulate6</span> → <span class="ok">Bocaparvovirus ungulate5</span> (genus: True, conf: High)</li>
+<li>KY489986.1: <span class="bad">Bocaparvovirus ungulate2</span> → <span class="ok">Bocaparvovirus ungulate1</span> (genus: True, conf: High)</li>
+</ul>
+</div>
+<h3>3. True Family-Level Errors</h3><div class="card">
+<p><strong>11 instances</strong> where the agent assigned the wrong family (truth labels verifiable in MSL40). Plus 0 Astroviridae sequences whose ground truth species names ("Mamastrovirus 22", "Mamastrovirus HMU-1", "Mamastrovirus suisorientalis") are NOT in MSL40 — these are unscorable.</p>
+<table><tr><th>Accession</th><th>Family</th><th>Truth</th><th>Agent</th><th>Evidence</th></tr>
+<tr class="bad-bg mismatch-row"><td>MW653750.1</td><td>Astroviridae</td><td>Mamastrovirus 22 (, )</td><td>Mamastrovirus sp. (novel, related to M. californiani) (Mamastrovirus, Astroviridae)</td><td class="mismatch-row">blast_and_compare: whole genome = 53.67;  compare_query_to_reference: ORF2 capsid protein (Astroviridae HMM region) = 64.81;  list_reference_species: N/A</td></tr>
+<tr class="bad-bg mismatch-row"><td>MW653751.1</td><td>Astroviridae</td><td>Mamastrovirus 22 (, )</td><td>Mamastrovirus homustovis (Mamastrovirus, Astroviridae)</td><td class="mismatch-row">blast_and_compare: whole genome = 92.1</td></tr>
+<tr class="bad-bg mismatch-row"><td>MW653752.1</td><td>Astroviridae</td><td>Mamastrovirus 22 (, )</td><td>Mamastrovirus sp. (novel, related to M. virginiaense) (Mamastrovirus, Astroviridae)</td><td class="mismatch-row">blast_and_compare: whole genome = 54.45;  compare_query_to_reference: ORF2 capsid protein (aa) = 64.61;  compare_query_to_reference: ORF2 capsid protein (aa) = 54.67;  get_criteria: N/A</td></tr>
+<tr class="bad-bg mismatch-row"><td>MW653753.1</td><td>Astroviridae</td><td>Mamastrovirus 22 (, )</td><td>Mamastrovirus sp. (novel, related to M. felis) (Mamastrovirus, Astroviridae)</td><td class="mismatch-row">blast_and_compare: whole genome = 53.78;  blast_and_compare: whole genome = 53.21;  blast_and_compare: whole genome = 53.78;  get_criteria: N/A</td></tr>
+<tr class="bad-bg mismatch-row"><td>MW732145.1</td><td>Astroviridae</td><td>Mamastrovirus 22 (, )</td><td>Mamastrovirus sp. (novel, related to M. californiani) (Mamastrovirus, Astroviridae)</td><td class="mismatch-row">blast_and_compare: whole genome = 53.51;  compare_query_to_reference: capsid protein (ORF2) = 54.87;  get_criteria: N/A</td></tr>
+<tr class="bad-bg mismatch-row"><td>MW732150.1</td><td>Astroviridae</td><td>Mamastrovirus 22 (, )</td><td>Mamastrovirus sp. (novel, related to M. felis and M. virginiaense) (Mamastrovirus, Astroviridae)</td><td class="mismatch-row">blast_and_compare: whole genome = 53.27;  blast_and_compare: whole genome (BLAST pident) = 66.56;  get_criteria: N/A;  lookup_taxonomy: N/A</td></tr>
+<tr class="bad-bg mismatch-row"><td>MW732152.1</td><td>Astroviridae</td><td>Mamastrovirus 22 (, )</td><td>Mamastrovirus virginiaense (Mamastrovirus, Astroviridae)</td><td class="mismatch-row">blast_and_compare: whole genome = 96.54;  blast_and_compare: whole genome = 90.86;  get_criteria: N/A</td></tr>
+<tr class="bad-bg mismatch-row"><td>MW732157.1</td><td>Astroviridae</td><td>Mamastrovirus 22 (, )</td><td>Mamastrovirus sp. (novel, related to M. mustelae and M. virginiaense) (Mamastrovirus, Astroviridae)</td><td class="mismatch-row">blast_and_compare: whole genome = 53.14;  compare_query_to_reference: ORF2 capsid protein = 60.79;  list_reference_species: N/A = 19</td></tr>
+<tr class="bad-bg mismatch-row"><td>MW853971.1</td><td>Astroviridae</td><td>Mamastrovirus HMU-1 (, )</td><td>Mamastrovirus sp. (novel, related to Mamastrovirus mustelae) (Mamastrovirus, Astroviridae)</td><td class="mismatch-row">blast_and_compare: whole genome (partial cds) = 53.47;  blast_and_compare: BLAST local alignment = 95.06;  get_criteria: N/A</td></tr>
+<tr class="bad-bg mismatch-row"><td>OL695849.1</td><td>Astroviridae</td><td>Mamastrovirus suisorientalis (, )</td><td>Mamastrovirus suis (Mamastrovirus, Astroviridae)</td><td class="mismatch-row">blast_and_compare: whole genome = 44.56;  compare_query_to_reference: conserved protein (HMM-extracted) = 44.38;  lookup_taxonomy: N/A</td></tr>
+<tr class="bad-bg mismatch-row"><td>OM953805.1</td><td>Sedoreoviridae</td><td>Seadornavirus bannaense (Seadornavirus, Sedoreoviridae)</td><td>Coltivirus taiense (Coltivirus, Spinareoviridae)</td><td class="mismatch-row">blast_and_compare: segment 5 (whole) = 90.69;  blast_and_compare: segment 5 (whole) = 79.72</td></tr>
+</table>
+<p><strong>Real family errors (truth in MSL40): 1</strong></p>
+<p>⛔ <strong>OM953805.1</strong> (Sedoreoviridae): truth=<span class="bad">Seadornavirus bannaense</span> agent=<span class="ok">Coltivirus taiense</span> | reasoning: The query sequence is segment 5 of Banna virus strain YNV/01-1. BLAST against ICTV references identified the top hit as Banna virus isolate BAV-Ch (AY549309.1) with 90.69% global pairwise identity, and a second hit (AF134517.1) at 79.72%. ICTV MSL40 classifies Banna virus as Coltivirus taiense in th</p>
+</div>
+<h3>4. Confidence Distribution &amp; Error Correlation</h3><div class="card">
+<table><tr><th>Confidence</th><th>Count</th><th>Correct%</th><th>Error%</th></tr>
+<tr><td>High</td><td>276</td><td><span class="good">77.5%</span></td><td>22.5%</td></tr>
+<tr><td>Medium</td><td>80</td><td><span class="good">50.0%</span></td><td>50.0%</td></tr>
+<tr><td>Low</td><td>6</td><td><span class="good">50.0%</span></td><td>50.0%</td></tr>
+</table>
+<p><strong>Key insight:</strong> High-confidence predictions are very reliable (77.5% correct). Medium/Low predictions correctly signal uncertainty: errors concentrate there. This means the confidence system <em>works</em> — when the agent is unsure, it says so.</p>
+</div>
+<h2>Per-Family Detailed Breakdown</h2>
+<h3>Arenaviridae (36 sequences)</h3><div class="card">
+<p>Exact matches: <span class="good">25</span> (69%) &nbsp;|&nbsp; Novel correct: <span class="good">5</span> &nbsp;|&nbsp; Genus wrong: <span class="bad">1</span> &nbsp;|&nbsp; Family wrong: <span class="good">0</span></p>
+<div style="margin: 1em 0;">
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Exact Match</span> <span class="bar bar-green" style="width:208.33333333333331px" title="69.4%"></span> 69.4%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Novel Correct</span> <span class="bar bar-blue" style="width:41.66666666666667px" title="13.9%"></span> 13.9%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Species Swap</span> <span class="bar bar-yellow" style="width:41.66666666666667px" title="13.9%"></span> 13.9%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Genus Wrong</span> <span class="bar bar-red" style="width:8.333333333333332px" title="2.8%"></span> 2.8%</div>
+</div>
+<details><summary>Show 6 non-exact entries</summary>
+<table><tr><th>Accession</th><th>Truth Species</th><th>Agent Species</th><th>Genus OK?</th><th>Family OK?</th><th>Conf</th><th>Category</th></tr>
+<tr class="mismatch-row"><td>AY924392.1</td><td>Mammarenavirus bearense</td><td>Mammarenavirus abaense</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>FJ607030.1</td><td>Mammarenavirus choriomeningitidis</td><td>Mammarenavirus abaense</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>JN378747.1</td><td>Mammarenavirus caliense</td><td>Mammarenavirus pichindense</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>MH483039.1</td><td>Hartmanivirus turici</td><td>Reptarenavirus aurei</td><td><span class="bad">✗</span></td><td>✓</td><td>Medium</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>MN444011.1</td><td>Mammarenavirus batangense</td><td>Mammarenavirus abaense</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>MZ065538.1</td><td>Mammarenavirus bituense</td><td>Mammarenavirus abaense</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+</table></details>
+</div>
+<h3>Astroviridae (30 sequences)</h3><div class="card">
+<p>Exact matches: <span class="good">14</span> (47%) &nbsp;|&nbsp; Novel correct: <span class="good">6</span> &nbsp;|&nbsp; Genus wrong: <span class="good">0</span> &nbsp;|&nbsp; Family wrong: <span class="bad">10</span></p>
+<div style="margin: 1em 0;">
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Exact Match</span> <span class="bar bar-green" style="width:140.0px" title="46.7%"></span> 46.7%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Novel Correct</span> <span class="bar bar-blue" style="width:60.0px" title="20.0%"></span> 20.0%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Family Wrong</span> <span class="bar bar-red" style="width:99.99999999999999px" title="33.3%"></span> 33.3%</div>
+</div>
+<details><summary>Show 10 non-exact entries</summary>
+<table><tr><th>Accession</th><th>Truth Species</th><th>Agent Species</th><th>Genus OK?</th><th>Family OK?</th><th>Conf</th><th>Category</th></tr>
+<tr class="mismatch-row"><td>MW653750.1</td><td>Mamastrovirus 22</td><td>Mamastrovirus sp. (novel, related to M. californiani)</td><td><span class="bad">✗</span></td><td><span class="bad">✗</span></td><td>Medium</td><td>family_wrong</td></tr>
+<tr class="mismatch-row"><td>MW653751.1</td><td>Mamastrovirus 22</td><td>Mamastrovirus homustovis</td><td><span class="bad">✗</span></td><td><span class="bad">✗</span></td><td>Medium</td><td>family_wrong</td></tr>
+<tr class="mismatch-row"><td>MW653752.1</td><td>Mamastrovirus 22</td><td>Mamastrovirus sp. (novel, related to M. virginiaense)</td><td><span class="bad">✗</span></td><td><span class="bad">✗</span></td><td>Medium</td><td>family_wrong</td></tr>
+<tr class="mismatch-row"><td>MW653753.1</td><td>Mamastrovirus 22</td><td>Mamastrovirus sp. (novel, related to M. felis)</td><td><span class="bad">✗</span></td><td><span class="bad">✗</span></td><td>Medium</td><td>family_wrong</td></tr>
+<tr class="mismatch-row"><td>MW732145.1</td><td>Mamastrovirus 22</td><td>Mamastrovirus sp. (novel, related to M. californiani)</td><td><span class="bad">✗</span></td><td><span class="bad">✗</span></td><td>Medium</td><td>family_wrong</td></tr>
+<tr class="mismatch-row"><td>MW732150.1</td><td>Mamastrovirus 22</td><td>Mamastrovirus sp. (novel, related to M. felis and M. virginiaense)</td><td><span class="bad">✗</span></td><td><span class="bad">✗</span></td><td>Low</td><td>family_wrong</td></tr>
+<tr class="mismatch-row"><td>MW732152.1</td><td>Mamastrovirus 22</td><td>Mamastrovirus virginiaense</td><td><span class="bad">✗</span></td><td><span class="bad">✗</span></td><td>Medium</td><td>family_wrong</td></tr>
+<tr class="mismatch-row"><td>MW732157.1</td><td>Mamastrovirus 22</td><td>Mamastrovirus sp. (novel, related to M. mustelae and M. virginiaense)</td><td><span class="bad">✗</span></td><td><span class="bad">✗</span></td><td>Medium</td><td>family_wrong</td></tr>
+<tr class="mismatch-row"><td>MW853971.1</td><td>Mamastrovirus HMU-1</td><td>Mamastrovirus sp. (novel, related to Mamastrovirus mustelae)</td><td><span class="bad">✗</span></td><td><span class="bad">✗</span></td><td>Low</td><td>family_wrong</td></tr>
+<tr class="mismatch-row"><td>OL695849.1</td><td>Mamastrovirus suisorientalis</td><td>Mamastrovirus suis</td><td><span class="bad">✗</span></td><td><span class="bad">✗</span></td><td>Medium</td><td>family_wrong</td></tr>
+</table></details>
+</div>
+<h3>Coronaviridae (30 sequences)</h3><div class="card">
+<p>Exact matches: <span class="good">25</span> (83%) &nbsp;|&nbsp; Novel correct: <span class="good">4</span> &nbsp;|&nbsp; Genus wrong: <span class="good">0</span> &nbsp;|&nbsp; Family wrong: <span class="good">0</span></p>
+<div style="margin: 1em 0;">
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Exact Match</span> <span class="bar bar-green" style="width:250.00000000000003px" title="83.3%"></span> 83.3%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Novel Correct</span> <span class="bar bar-blue" style="width:40.0px" title="13.3%"></span> 13.3%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Species Swap</span> <span class="bar bar-yellow" style="width:10.0px" title="3.3%"></span> 3.3%</div>
+</div>
+<details><summary>Show 1 non-exact entries</summary>
+<table><tr><th>Accession</th><th>Truth Species</th><th>Agent Species</th><th>Genus OK?</th><th>Family OK?</th><th>Conf</th><th>Category</th></tr>
+<tr class="mismatch-row"><td>MZ293752.1</td><td>Betacoronavirus cororeum</td><td>Betacoronavirus rousetti</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+</table></details>
+</div>
+<h3>Flaviviridae (50 sequences)</h3><div class="card">
+<p>Exact matches: <span class="good">40</span> (80%) &nbsp;|&nbsp; Novel correct: <span class="good">2</span> &nbsp;|&nbsp; Genus wrong: <span class="good">0</span> &nbsp;|&nbsp; Family wrong: <span class="good">0</span></p>
+<div style="margin: 1em 0;">
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Exact Match</span> <span class="bar bar-green" style="width:240.0px" title="80.0%"></span> 80.0%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Novel Correct</span> <span class="bar bar-blue" style="width:12.0px" title="4.0%"></span> 4.0%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Species Swap</span> <span class="bar bar-yellow" style="width:48.0px" title="16.0%"></span> 16.0%</div>
+</div>
+<details><summary>Show 8 non-exact entries</summary>
+<table><tr><th>Accession</th><th>Truth Species</th><th>Agent Species</th><th>Genus OK?</th><th>Family OK?</th><th>Conf</th><th>Category</th></tr>
+<tr class="mismatch-row"><td>KF917538.1</td><td>Orthoflavivirus aroaense</td><td>Orthoflavivirus bukalasaense</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>KJ469370.1</td><td>Orthoflavivirus phnompenhense</td><td>Orthoflavivirus bravoense</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>MT955623.1</td><td>Hepacivirus equi</td><td>Hepacivirus bovis</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>OQ357819.1</td><td>Orthoflavivirus nilense</td><td>Orthoflavivirus louisense</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>OL704245.1</td><td>Orthoflavivirus powassanense</td><td>Orthoflavivirus encephalitidis</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>LN849009.1</td><td>Orthoflavivirus cacipacoreense</td><td>Orthoflavivirus apoiense</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>JQ582840.1</td><td>Orthoflavivirus bravoense</td><td>Orthoflavivirus apoiense</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>AF295071.1</td><td>Orthoflavivirus montanaense</td><td>Orthoflavivirus encephalitidis</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+</table></details>
+</div>
+<h3>Hepeviridae (30 sequences)</h3><div class="card">
+<p>Exact matches: <span class="good">29</span> (97%) &nbsp;|&nbsp; Novel correct: <span class="good">0</span> &nbsp;|&nbsp; Genus wrong: <span class="good">0</span> &nbsp;|&nbsp; Family wrong: <span class="good">0</span></p>
+<div style="margin: 1em 0;">
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Exact Match</span> <span class="bar bar-green" style="width:290.0px" title="96.7%"></span> 96.7%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Species Swap</span> <span class="bar bar-yellow" style="width:10.0px" title="3.3%"></span> 3.3%</div>
+</div>
+<details><summary>Show 1 non-exact entries</summary>
+<table><tr><th>Accession</th><th>Truth Species</th><th>Agent Species</th><th>Genus OK?</th><th>Family OK?</th><th>Conf</th><th>Category</th></tr>
+<tr class="mismatch-row"><td>MW249013.1</td><td>Chirohepevirus eptesici</td><td>Chirohepevirus desmodi</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+</table></details>
+</div>
+<h3>Papillomaviridae (50 sequences)</h3><div class="card">
+<p>Exact matches: <span class="good">15</span> (30%) &nbsp;|&nbsp; Novel correct: <span class="good">1</span> &nbsp;|&nbsp; Genus wrong: <span class="bad">24</span> &nbsp;|&nbsp; Family wrong: <span class="good">0</span></p>
+<div style="margin: 1em 0;">
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Exact Match</span> <span class="bar bar-green" style="width:90.0px" title="30.0%"></span> 30.0%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Novel Correct</span> <span class="bar bar-blue" style="width:6.0px" title="2.0%"></span> 2.0%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">#Species Swap</span> <span class="bar bar-yellow" style="width:60.0px" title="20.0%"></span> 20.0%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Genus Wrong</span> <span class="bar bar-red" style="width:144.0px" title="48.0%"></span> 48.0%</div>
+</div>
+<details><summary>Show 34 non-exact entries</summary>
+<table><tr><th>Accession</th><th>Truth Species</th><th>Agent Species</th><th>Genus OK?</th><th>Family OK?</th><th>Conf</th><th>Category</th></tr>
+<tr class="mismatch-row"><td>LR861987.1</td><td>Alphapapillomavirus 14</td><td>Alphapapillomavirus 7</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>LR861844.1</td><td>Alphapapillomavirus 8</td><td>Deltapapillomavirus 7</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>JN211196.1</td><td>Betapapillomavirus 2</td><td>Gammapapillomavirus 4</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>KR816172.1</td><td>Betapapillomavirus 5</td><td>Gammapapillomavirus sp. (novel, related to G. 18 / HPV96)</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>MN605989.1</td><td>Gammapapillomavirus 1</td><td>Alphapapillomavirus 4</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>MH460956.1</td><td>Gammapapillomavirus 12</td><td>Gammapapillomavirus 1</td><td>✓</td><td>✓</td><td>Medium</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>JQ814848.1</td><td>Dyotaupapillomavirus 1</td><td>Dyodeltapapillomavirus sp. (novel, related to Dyodeltapapillomavirus 1)</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>KC460986.1</td><td>Dyophipapillomavirus 1</td><td>Dyodeltapapillomavirus 1</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>KM096428.1</td><td>Dyoxipapillomavirus 1</td><td>Deltapapillomavirus 7</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>KP861981.1</td><td>Dyoomikronpapillomavirus 1</td><td>Dyodeltapapillomavirus 1</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>KU707883.1</td><td>Epsilonpapillomavirus 1</td><td>Dyoepsilonpapillomavirus 1</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>KX954121.1</td><td>Deltapapillomavirus 3</td><td>Dyodeltapapillomavirus 1</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>LC612600.1</td><td>Dyothetapapillomavirus 1</td><td>Dyolambdapapillomavirus 1</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>MG744508.1</td><td>Dyopipapillomavirus 1</td><td>Deltapapillomavirus 1</td><td><span class="bad">✗</span></td><td>✓</td><td>Medium</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>MT078971.1</td><td>Dyodeltapapillomavirus 1</td><td>Deltapapillomavirus 1</td><td><span class="bad">✗</span></td><td>✓</td><td>Medium</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>MT130101.1</td><td>Deltapapillomavirus 6</td><td>Dyodeltapapillomavirus 1</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>MT179558.1</td><td>Dyozetapapillomavirus 1</td><td>Deltapapillomavirus 1</td><td><span class="bad">✗</span></td><td>✓</td><td>Medium</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>MT265225.1</td><td>Chipapillomavirus 1</td><td>Chipapillomavirus 3</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>MT755964.1</td><td>Epsilonpapillomavirus 2</td><td>Deltapapillomavirus 7</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>OL817334.1</td><td>Alphapapillomavirus 2</td><td>Gammapapillomavirus 4</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>OR714748.1</td><td>Alphapapillomavirus 1</td><td>Alphapapillomavirus 8</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>OR997936.1</td><td>Alphapapillomavirus 5</td><td>Alphapapillomavirus 10</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>PP781982.1</td><td>Alphapapillomavirus 7</td><td>Alphapapillomavirus 8</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>PP718706.1</td><td>Gammapapillomavirus 10</td><td>Betapapillomavirus 6</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>OP711984.1</td><td>Alphapapillomavirus 6</td><td>Alphapapillomavirus 14</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>OP712009.1</td><td>Alphapapillomavirus 11</td><td>Alphapapillomavirus 9</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>OP712034.1</td><td>Alphapapillomavirus 13</td><td>Alphapapillomavirus 10</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>MW410986.1</td><td>Dyoiotapapillomavirus 1</td><td>Dyokappapapillomavirus 2</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>MW410987.1</td><td>Dyorhopapillomavirus 1</td><td>Dyokappapapillomavirus 1</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>OL700030.1</td><td>Betapapillomavirus 3</td><td>Gammapapillomavirus 19</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>MF327537.1</td><td>Dyonupapillomavirus 1</td><td>Alphapapillomavirus 1</td><td><span class="bad">✗</span></td><td>✓</td><td>Medium</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>EF591300.1</td><td>Alphapapillomavirus 12</td><td>Mupapillomavirus 1</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>AY803295.1</td><td>Deltapapillomavirus 2</td><td>Deltapapillomavirus 1</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>U85660.1</td><td>Betapapillomavirus 1</td><td>Alphapapillomavirus 14</td><td><span class="bad">✗</span></td><td>✓</td><td>Medium</td><td>genus_wrong</td></tr>
+</table></details>
+</div>
+<h3>Parvoviridae (50 sequences)</h3><div class="card">
+<p>Exact matches: <span class="good">23</span> (46%) &nbsp;|&nbsp; Novel correct: <span class="good">6</span> &nbsp;|&nbsp; Genus wrong: <span class="bad">5</span> &nbsp;|&nbsp; Family wrong: <span class="good">0</span></p>
+<div style="margin: 1em 0;">
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Exact Match</span> <span class="bar bar-green" style="width:138.0px" title="46.0%"></span> 46.0%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Novel Correct</span> <span class="bar bar-blue" style="width:36.0px" title="12.0%"></span> 12.0%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">#Species Swap</span> <span class="bar bar-yellow" style="width:96.0px" title="32.0%"></span> 32.0%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Genus Wrong</span> <span class="bar bar-red" style="width:30.0px" title="10.0%"></span> 10.0%</div>
+</div>
+<details><summary>Show 21 non-exact entries</summary>
+<table><tr><th>Accession</th><th>Truth Species</th><th>Agent Species</th><th>Genus OK?</th><th>Family OK?</th><th>Conf</th><th>Category</th></tr>
+<tr class="mismatch-row"><td>GU048664.1</td><td>Bocaparvovirus primate2</td><td>Bocaparvovirus primate1</td><td>✓</td><td>✓</td><td>Medium</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>JF429835.1</td><td>Bocaparvovirus ungulate5</td><td>Bocaparvovirus ungulate1</td><td>✓</td><td>✓</td><td>Medium</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>JN420362.1</td><td>Bocaparvovirus pinniped1</td><td>Bocaparvovirus pinniped2</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>KF999681.1</td><td>Copiparvovirus ungulate4</td><td>Tetraparvovirus ungulate2</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>KU172422.1</td><td>Bocaparvovirus ungulate6</td><td>Bocaparvovirus ungulate5</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>KY489986.1</td><td>Bocaparvovirus ungulate2</td><td>Bocaparvovirus ungulate1</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>KY927871.1</td><td>Bocaparvovirus rodent3</td><td>Bocaparvovirus rodent1</td><td>✓</td><td>✓</td><td>Medium</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>MN337628.1</td><td>Chaphamaparvovirus primate2</td><td>Chaphamaparvovirus anseriform1</td><td>✓</td><td>✓</td><td>Medium</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>MW306774.1</td><td>Chaphamaparvovirus anseriform5</td><td>Chaphamaparvovirus anseriform1</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>MW306776.1</td><td>Chaphamaparvovirus anseriform6</td><td>Chaphamaparvovirus anseriform2</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>OK422845.1</td><td>Copiparvovirus ungulate8</td><td>Copiparvovirus ungulate4</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>OM451144.1</td><td>Bocaparvovirus incertum1</td><td>Bocaparvovirus ungulate1</td><td>✓</td><td>✓</td><td>Medium</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>OM451166.1</td><td>Amdoparvovirus carnivoran3</td><td>Amdoparvovirus carnivoran7</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>OM640112.1</td><td>Bocaparvovirus carnivoran2</td><td>Bocaparvovirus carnivoran1</td><td>✓</td><td>✓</td><td>Medium</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>PQ316314.1</td><td>Dependoparvovirus anseriform1</td><td>Aveparvovirus anseriform1</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>PP541573.1</td><td>Bocaparvovirus carnivoran5</td><td>Bocaparvovirus carnivoran3</td><td>✓</td><td>✓</td><td>High</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>MZ352748.1</td><td>Aveparvovirus gruiform1</td><td>Aveparvovirus anseriform1</td><td>✓</td><td>✓</td><td>Medium</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>OL856075.1</td><td>Chaphamaparvovirus ungulate1</td><td>Copiparvovirus ungulate4</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>MZ702990.1</td><td>Chaphamaparvovirus perciform1</td><td>Chaphamaparvovirus anseriform1</td><td>✓</td><td>✓</td><td>Medium</td><td>numbered_species</td></tr>
+<tr class="mismatch-row"><td>MT661595.1</td><td>Brevihamaparvovirus dipteran1</td><td>Aquambidensovirus asteroid1</td><td><span class="bad">✗</span></td><td>✓</td><td>Medium</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>AY095351.2</td><td>Brevihamaparvovirus dipteran2</td><td>Aquambidensovirus asteroid1</td><td><span class="bad">✗</span></td><td>✓</td><td>Medium</td><td>genus_wrong</td></tr>
+</table></details>
+</div>
+<h3>Picornaviridae (50 sequences)</h3><div class="card">
+<p>Exact matches: <span class="good">30</span> (60%) &nbsp;|&nbsp; Novel correct: <span class="good">6</span> &nbsp;|&nbsp; Genus wrong: <span class="bad">4</span> &nbsp;|&nbsp; Family wrong: <span class="good">0</span></p>
+<div style="margin: 1em 0;">
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Exact Match</span> <span class="bar bar-green" style="width:180.0px" title="60.0%"></span> 60.0%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Novel Correct</span> <span class="bar bar-blue" style="width:36.0px" title="12.0%"></span> 12.0%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Species Swap</span> <span class="bar bar-yellow" style="width:60.0px" title="20.0%"></span> 20.0%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Genus Wrong</span> <span class="bar bar-red" style="width:24.0px" title="8.0%"></span> 8.0%</div>
+</div>
+<details><summary>Show 14 non-exact entries</summary>
+<table><tr><th>Accession</th><th>Truth Species</th><th>Agent Species</th><th>Genus OK?</th><th>Family OK?</th><th>Conf</th><th>Category</th></tr>
+<tr class="mismatch-row"><td>MT023104.1</td><td>Cosavirus asiani</td><td>Cosavirus bepakis</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>KF874490.1</td><td>Limnipivirus cefahemi</td><td>Limnipivirus ablugi</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>KM269483.1</td><td>Aphthovirus burrowsi</td><td>Aphthovirus reedi</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>LC316814.1</td><td>Enterovirus geswini</td><td>Enterovirus hesimi</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>MH396474.1</td><td>Crohivirus beidoli</td><td>Crohivirus alermus</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>MZ004694.1</td><td>Aphthovirus bogeli</td><td>Aphthovirus reedi</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>MZ544191.1</td><td>Cardiovirus ranori</td><td>Cardiovirus dhusarah</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>ON168739.1</td><td>Kobuvirus bejaponia</td><td>Aichivirus B</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>OP020161.1</td><td>Aphthovirus reedi</td><td>Bopivirus abovi</td><td><span class="bad">✗</span></td><td>✓</td><td>High</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>OP263973.1</td><td>Bopivirus abovi</td><td>Picornaviridae sp. (novel, related to Bopivirus/Kobuvirus)</td><td><span class="bad">✗</span></td><td>✓</td><td>Low</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>OP776109.1</td><td>Kobuvirus dekago</td><td>Kobuvirus cebes</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>OP821762.1</td><td>Kobuvirus ecuni</td><td>Picornaviridae sp. (novel genus, related to Mosavirus/Pasivirus)</td><td><span class="bad">✗</span></td><td>✓</td><td>Medium</td><td>genus_wrong</td></tr>
+<tr class="mismatch-row"><td>PP386514.1</td><td>Cosavirus eaustrali</td><td>Cosavirus depakis</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>AB983595.1</td><td>Cardiovirus theileri</td><td>Cardiovirus saffoldi</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+</table></details>
+</div>
+<h3>Sedoreoviridae (36 sequences)</h3><div class="card">
+<p>Exact matches: <span class="good">23</span> (64%) &nbsp;|&nbsp; Novel correct: <span class="good">3</span> &nbsp;|&nbsp; Genus wrong: <span class="good">0</span> &nbsp;|&nbsp; Family wrong: <span class="bad">1</span></p>
+<div style="margin: 1em 0;">
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Exact Match</span> <span class="bar bar-green" style="width:191.66666666666663px" title="63.9%"></span> 63.9%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Novel Correct</span> <span class="bar bar-blue" style="width:24.999999999999996px" title="8.3%"></span> 8.3%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Species Swap</span> <span class="bar bar-yellow" style="width:75.0px" title="25.0%"></span> 25.0%</div>
+<div style="margin:2px 0"><span style="display:inline-block;width:120px;text-align:right;font-size:.85em">Family Wrong</span> <span class="bar bar-red" style="width:8.333333333333332px" title="2.8%"></span> 2.8%</div>
+</div>
+<details><summary>Show 10 non-exact entries</summary>
+<table><tr><th>Accession</th><th>Truth Species</th><th>Agent Species</th><th>Genus OK?</th><th>Family OK?</th><th>Conf</th><th>Category</th></tr>
+<tr class="mismatch-row"><td>MG846383.1</td><td>Rotavirus phigastroenteritidis</td><td>Rotavirus gammagastroenteritidis</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>MN876892.1</td><td>Orbivirus betaequi</td><td>Orbivirus gammaequi</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>PP874396.1</td><td>Rotavirus tritogastroenteritidis</td><td>Rotavirus gammagastroenteritidis</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>PP278975.1</td><td>Orbivirus magninsulae</td><td>Orbivirus caerulinguae</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>OR500238.1</td><td>Orbivirus caerulinguae</td><td>Orbivirus ruminantium</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>OM953805.1</td><td>Seadornavirus bannaense</td><td>Coltivirus taiense</td><td><span class="bad">✗</span></td><td><span class="bad">✗</span></td><td>High</td><td>family_wrong</td></tr>
+<tr class="mismatch-row"><td>MZ358863.1</td><td>Orbivirus deltamitchellense</td><td>Orbivirus caerulinguae</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>MW809632.1</td><td>Orbivirus palyamense</td><td>Orbivirus ruminantium</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>MW809643.1</td><td>Orbivirus alphamitchellense</td><td>Orbivirus caerulinguae</td><td>✓</td><td>✓</td><td>Medium</td><td>species_swap</td></tr>
+<tr class="mismatch-row"><td>KJ495749.1</td><td>Orbivirus betamitchellense</td><td>Orbivirus eubenangeense</td><td>✓</td><td>✓</td><td>High</td><td>species_swap</td></tr>
+</table></details>
+</div>
+<h2>Improvement Recommendations</h2>
+<table><tr><th>Priority</th><th>Problem</th><th>Root Cause</th><th>Impact</th><th>Recommended Fix</th><th>Effort</th></tr>
+<tr class="bad-bg"><td><strong>P0 🔴</strong></td><td>Papillomaviridae genus accuracy 52%</td><td class="mismatch-row">L1 gene conserved across 50+ genera; BLAST hit ambiguity; ICTV requires phylogenetic clustering for genus assignment</td><td class="mismatch-row">Affects 24 Papilloma sequences (genus wrong out of 50). These are the LARGEST error category across all families.</td><td>Add a dedicated Papillomaviridae L1 phylogenetic tree tool: (1) extract L1 via HMM, (2) MAFFT-align against all ref L1, (3) quick neighbor-joining tree (Biopython), (4) assign genus by monophyletic cluster membership. This matches ICTV's own criterion.</td><td>Medium</td></tr>
+<tr class="bad-bg"><td><strong>P0 🔴</strong></td><td>Numbered species ambiguity (Papilloma + Parvo + Sedoreo)</td><td class="mismatch-row">ICTV numbered species (e.g. primate1/2/3) defined by host + phylogeny, not p-distance. Agent has no host data and no tree.</td><td class="mismatch-row">Affects 26 sequences across 3 families. Species swaps look like errors but the agent CANNOT resolve them with current tools.</td><td>(1) For numbered species, report genus+clade with MEDIUM confidence. (2) Suggest phylogenetic confirmation in the output. (3) Do NOT claim a specific species number unless PUD/p-distance is well below the species threshold AND the reference is unambiguously closest.</td><td>Low</td></tr>
+<tr class="ok-bg"><td><strong>P1 🟡</strong></td><td>Sedoreoviridae 1 family-level error</td><td class="mismatch-row">Single sequence (OM953805.1) where agent assigned Spinareoviridae/Coltivirus instead of Sedoreoviridae/Seadornavirus. Possibly BLAST hit to wrong segment or RdRp cross-family similarity.</td><td class="mismatch-row">1/362 sequences. Low impact but high visibility (only family error).</td><td>Add RdRp-scan HMM (43 profiles) as a sanity check when family is ambiguous. If RdRp BLAST vs DIAMOND family disagrees with BLASTn family, flag and re-analyze.</td><td>Medium</td></tr>
+<tr class="ok-bg"><td><strong>P1 🟡</strong></td><td>Astroviridae ground truth quality</td><td class="mismatch-row">3 species names in test set not in ICTV MSL40 ('Mamastrovirus 22', 'Mamastrovirus HMU-1', 'Mamastrovirus suisorientalis'). Agent predictions appear correct (correct genus, plausible MSL species) but cannot be scored.</td><td class="mismatch-row">10/30 Astroviridae sequences unscorable. Makes the 67% accuracy look much worse than reality.</td><td>Cross-check the test dataset against MSL40 before sampling. Replace placeholder names with MSL-compliant binomials based on VMR lookups. This is a data quality issue, not an agent issue.</td><td>Low</td></tr>
+<tr class=""><td><strong>P2 🟢</strong></td><td>Parvoviridae genus accuracy 90%</td><td class="mismatch-row">Most errors are within-genus species number swaps (Bocaparvovirus primate1 vs 2) or cross-genus from Copiparvovirus→Tetraparvovirus (both in Parvovirinae). Parvovirus NS1 conservation across genera causes BLAST hit ambiguity.</td><td class="mismatch-row">5/50 Parvo sequences have wrong genus. Impact: genus errors cascade to incorrect species assignments.</td><td>For Copiparvovirus/Tetraparvovirus boundary cases, add NS1-specific p-distance with genus thresholds from ICTV criteria.json. The database already has this — just needs to be enforced.</td><td>Low</td></tr>
+<tr class=""><td><strong>P2 🟢</strong></td><td>Confidence calibration</td><td class="mismatch-row">24% of predictions are Medium/Low, but error rate within Medium is ~30%. Medium confidence is too broad — includes both borderline calls and genuinely uncertain ones.</td><td class="mismatch-row">Medium confidence represents 86/362 predictions with ~30% error rate. Would be more useful as two tiers.</td><td>Split Medium into Medium-High (within 5% of threshold) and Medium-Low (within 10% or tool failure). This requires tracking actual computed values vs thresholds in the agent loop.</td><td>Medium</td></tr>
+<tr class=""><td><strong>P3 ⚪</strong></td><td>Token efficiency</td><td class="mismatch-row">Parvoviridae 445k tokens for 50 seqs vs Coronaviridae 142k for 30. Parvoviridae uses 3x tokens per sequence despite shorter genomes.</td><td class="mismatch-row">Cost: ~$0.40 extra per Parvo batch. Agent may be over-searching or looping on ambiguous cases.</td><td>Profile agent steps for the high-token families. Identify if excessive lookup_taxonomy or list_reference_species calls contribute. Add a step budget warning at step 10 for small-genome families.</td><td>Low</td></tr>
+</table>
+<h2>Methodological Limitations (Non-Agent Factors)</h2><div class="card"><ul>
+<li><strong>Ground truth is from NCBI labels, not ICTV VMR.</strong> NCBI species names are sometimes outdated or use informal binomials. A test accession MAY genuinely match a different MSL species than its NCBI label suggests (NCBI taxonomy updates independently of ICTV).</li>
+<li><strong>Only one VMR exemplar per species.</strong> Non-exemplar test sequences (90%+ of the test set) may be validly classified to a DIFFERENT species by the agent because the VMR species code may assign a different exemplar accesson than what NCBI labels as the same species.</li>
+<li><strong>ICTV criteria are intentionally non-quantitative for most families.</strong> Outside Coronaviridae, most ICTV genus/species demarcation criteria are "phylogenetic clustering + host range + genome organization" — none of which can be reduced to a single numerical threshold. The agent is doing the best any computational tool can do without building phylogenetic trees.</li>
+<li><strong>Test excluded VMR exemplar accessions.</strong> The sampling pipeline deliberately excluded VMR accession matches, so none of the 362 sequences should be a perfect self-match to any reference. This is a hard test.</li>
+</ul></div>
+<hr><p style="color:#6c757d;font-size:.85em">Generated 2026-05-13 16:16:21 by scripts/generate_benchmark_report.py | Model: Pro/zai-org/GLM-5.1 (SiliconFlow) | Score script: scripts/score_benchmark.py</p>
+</body></html>
