@@ -13,6 +13,7 @@ class ClassifyRequest(BaseModel):
     sequence_type: str = Field("auto", description="'nt', 'aa', or 'auto'")
     max_steps: int = Field(20, description="Max agent reasoning steps")
     family_hint: str = Field("", description="Optional: specify virus family to skip BLAST step")
+    model: str = Field("", description="Optional: override CLAUDE_MODEL env var for this job (e.g. glm-5.1, kimi-k2.6)")
 
 
 class TaxonomyResult(BaseModel):

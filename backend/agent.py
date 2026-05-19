@@ -33,18 +33,37 @@ _shared_client_key: tuple[str, str] = ("", "")  # (api_key, base_url)
 def _get_shared_client(api_key: str, base_url: str | None) -> anthropic.Anthropic:
     """Return a module-level Anthropic client, creating or recycling as needed.
 
-    The httpx.Client is configured with trust_env=False (bypasses local proxy)
-    and a generous 120-second timeout. Keeping a single client across classify
-    calls lets httpx reuse its TCP/TLS connection pool, eliminating the 60-130s
-    cold-start penalty on first API call after server restart.
+    The httpx.Client uses a larger connection pool and longer keepalive_expiry
+    so connections survive the minutes-long gaps between API rounds while a
+    tool runs (BLAST / MAFFT / corona_pud). Default httpx keepalive_expiry=5s
+    caused pooled connections to die between rounds, forcing reconnects that
+    sometimes got rate-limited by Ark as "Connection error". trust_env=False
+    bypasses local proxy. 120-second timeout covers slow model responses.
     """
     global _shared_client, _shared_client_key
     key = (api_key, base_url or "")
     if _shared_client is not None and _shared_client_key == key:
         return _shared_client
 
-    http_client = httpx.Client(trust_env=False, timeout=120.0)
-    kwargs: dict = {"api_key": api_key, "http_client": http_client}
+    limits = httpx.Limits(
+        max_keepalive_connections=50,
+        max_connections=200,
+        keepalive_expiry=300.0,  # 5 min — long enough to span tool execution
+    )
+    # trust_env=False: the Agent API endpoints are reached directly, not via
+    # any local proxy. If your machine's DNS cannot resolve the API host,
+    # add an /etc/hosts entry instead of enabling the proxy — the model API
+    # traffic should never leave through the browser's Clash tunnel.
+    http_client = httpx.Client(
+        trust_env=False,
+        timeout=120.0,
+        limits=limits,
+    )
+    kwargs: dict = {
+        "api_key": api_key,
+        "http_client": http_client,
+        "max_retries": 4,  # SDK retries on transient errors (429/5xx/ConnectError)
+    }
     if base_url:
         kwargs["base_url"] = base_url
     _shared_client = anthropic.Anthropic(**kwargs)
@@ -302,6 +321,35 @@ TOOLS = [
                 },
             },
             "required": ["family", "ref_accession"],
+        },
+    },
+    {
+        "name": "phylogenetic_placement",
+        "description": (
+            "Place the query sequence onto the ICTV reference phylogenetic tree via EPA-ng "
+            "and assign taxonomy by LCA (lowest common ancestor) of the placement clade.\n\n"
+            "USE THIS TOOL for families where ICTV criteria are phylogenetic clustering "
+            "(qualitative) or where identity-based methods give ambiguous results:\n"
+            "  - Papillomaviridae: genus/species require phylogenetic clustering of L1\n"
+            "  - Astroviridae: all criteria are phylogenetic only\n"
+            "  - Parvoviridae: numbered species (primate1/2/3) need phylogeny\n"
+            "  - Sedoreoviridae: genus assignment by serogroup+phylogeny\n"
+            "  - Any family where p-distance/BLAST gives inconsistent genus calls\n\n"
+            "The tool extracts the family-specific marker gene (RdRp for RNA viruses, "
+            "Rep for DNA viruses), aligns it to the ICTV reference MSA, places it on "
+            "the IQ-TREE reference tree with EPA-ng, and returns LCA-based classification "
+            "with novel-species assessment (species conflict + pendant length + LWR). "
+            "Available for 31 families."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "family": {
+                    "type": "string",
+                    "description": "Virus family name (e.g. Papillomaviridae, Parvoviridae, Astroviridae)",
+                },
+            },
+            "required": ["family"],
         },
     },
 ]
@@ -716,6 +764,13 @@ def _execute_tool(
                 "comparisons": comparisons,
             })
 
+        elif name == "phylogenetic_placement":
+            from .tools.phylogeny import phylogenetic_placement as pp_place
+            family = inputs["family"]
+            genome_nt = inputs.get("genome_nt", "").replace("\n", "").replace(" ", "")
+            result = pp_place(genome_nt, family)
+            return json.dumps(result)
+
         else:
             return json.dumps({"error": f"Unknown tool: {name}"})
 
@@ -762,6 +817,7 @@ Your task is to classify a virus sequence by strictly following ICTV official de
 - **corona_pud_classify is authoritative for Coronaviridae.** When it returns `best_hit.rank == "same_species"`, you MUST copy `top_hits[0].taxonomy` VERBATIM into the final JSON (family, subfamily, genus, subgenus, species). Do NOT translate, re-derive, or substitute names. Do NOT invent references like "HKU3" that are not in the tool output. Quote the accession and PUD value exactly as returned.
 - **NEVER fabricate tool results.** Every numeric value in your evidence (PUD, identity %, p-distance) MUST come from a tool call you actually executed in this session. If you have not called `corona_pud_classify`, you have NO PUD value — do NOT write "PUD=0.000" or any other made-up number. Writing fake tool outputs is the worst possible failure mode. If a required tool was not called, call it now before answering.
 - **Mandatory first call for any Coronaviridae sequence ≥20 kb: corona_pud_classify.** Do not output any final classification until you have invoked this tool and received its JSON response. The post-processing layer will REPLACE your taxonomy with the tool's authoritative output if it disagrees.
+- **Use phylogenetic_placement for families that need phylogenetic clustering.** For Papillomaviridae, Astroviridae, and Parvoviridae — where ICTV criteria explicitly require phylogenetic analysis — call phylogenetic_placement(family=X) AFTER blast_and_compare. The LCA-based taxonomy from the placement tree is AUTHORITATIVE and BINDING. Copy `lca_classification.Genus` VERBATIM into your output JSON. If `novel_species=true`, set that flag. Do NOT override the placement answer with manual species lookups — the post-processing layer will replace your output with the placement result if they disagree.
 - Cite the EXACT ICTV criterion and threshold you applied, and the EXACT computed value from your tool calls.
 - Confidence levels: High (computed value clearly above/below threshold), Medium (within ±5% of threshold), Low (required computation failed or partial sequence).
 - **Novel species heuristic for families WITHOUT numerical thresholds** (e.g. Astroviridae, Caliciviridae, Orthoherpesviridae, Pneumoviridae, Poxviridae, etc.): when get_criteria returns no numerical threshold, use these BLAST-based rules to judge novel_species:
@@ -836,6 +892,7 @@ async def classify_sequence(
     max_steps: int = 20,
     step_callback=None,
     family_hint: str = "",
+    model_override: str | None = None,
 ) -> tuple[ClassifyResult, list[str]]:
     """
     Run the classification agent.
@@ -978,15 +1035,40 @@ async def classify_sequence(
         # Run synchronous API call in thread pool to avoid blocking event loop
         # Disable extended thinking: GLM-4.7 otherwise generates huge thinking blocks
         # on complex classification prompts, making each round-trip take minutes.
-        response = await asyncio.to_thread(
-            client.messages.create,
-            model=os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6"),
-            max_tokens=4096,
-            system=SYSTEM_PROMPT,
-            tools=TOOLS,
-            messages=messages,
-            thinking={"type": "disabled"},
-        )
+        # Wrap in explicit retry: when Ark / Volcano Engine rate-limits the pool
+        # or a keepalive connection dies, the SDK raises APIConnectionError
+        # (which its own max_retries sometimes misses). Back-off exponentially.
+        response = None
+        last_exc = None
+        # More retries + longer cap: when Ark per-key rate limit kicks in,
+        # short backoffs hit the wall repeatedly. 8 attempts with cap 90s
+        # spans ~4-5 minutes of patient waiting before giving up.
+        for _attempt in range(8):
+            try:
+                response = await asyncio.to_thread(
+                    client.messages.create,
+                    model=model_override or os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6"),
+                    max_tokens=4096,
+                    system=SYSTEM_PROMPT,
+                    tools=TOOLS,
+                    messages=messages,
+                    thinking={"type": "disabled"},
+                )
+                break
+            except (anthropic.APIConnectionError, anthropic.APITimeoutError,
+                    anthropic.RateLimitError, anthropic.InternalServerError) as e:
+                last_exc = e
+                backoff = min(2 ** _attempt, 90)  # 1,2,4,8,16,32,64,90s
+                log(f"[Retry] Step {step+1} attempt {_attempt+1}/8: "
+                    f"{type(e).__name__}: {str(e)[:120]} — retrying in {backoff}s")
+                if step_callback:
+                    await step_callback(
+                        f"[Retry] API connection issue (attempt {_attempt+1}/8), "
+                        f"backing off {backoff}s..."
+                    )
+                await asyncio.sleep(backoff)
+        if response is None:
+            raise last_exc or RuntimeError("Exhausted API retries")
 
         # Accumulate token usage from this API round-trip
         try:
@@ -1078,7 +1160,8 @@ async def classify_sequence(
                 inputs = dict(tu.input)
                 if tu.name in ("blast_search", "blast_and_compare"):
                     inputs["sequence"] = _full_seq
-                elif tu.name in ("corona_pud_classify", "compare_query_to_reference"):
+                elif tu.name in ("corona_pud_classify", "compare_query_to_reference",
+                                  "phylogenetic_placement"):
                     inputs["genome_nt"] = _full_seq
                 elif tu.name == "extract_target_region":
                     if not inputs.get("ref_accession"):
@@ -1162,6 +1245,97 @@ async def classify_sequence(
                         )
     except Exception as e:
         log(f"[Override] generic BLAST→VMR fallback failed: {e}")
+
+    # Tool-override: phylogenetic placement is the authoritative last word for
+    # families where ICTV criteria are phylogenetic clustering (Papillomaviridae,
+    # Parvoviridae, Astroviridae). Some models (DeepSeek v4, GLM-5.1) will
+    # CALL phylogenetic_placement, correctly echo its LCA genus in their step
+    # narrative, then IGNORE it in the final JSON — substituting a wrong genus
+    # from manual lookup. This override makes placement binding:
+    #   1. If placement was never called → force-run it
+    #   2. Compare placement LCA genus vs model's output genus
+    #   3. If they disagree → placement wins
+    #   4. Same for novel_species flag: if placement says novel but model
+    #      didn't flag it, force novel=true
+    try:
+        placement_families = {"papillomaviridae", "parvoviridae", "astroviridae"}
+        family_lower = (final_result.taxonomy.family or "").strip().lower()
+        if family_lower in placement_families:
+            payload = None
+            # Try to extract from model's own tool call first
+            for tn, result_str in tool_result_store:
+                if tn == "phylogenetic_placement":
+                    try:
+                        payload = json.loads(result_str)
+                    except Exception:
+                        payload = None
+                    break
+            # If model never called it (or result was an error), run it now
+            if payload is None or "error" in payload:
+                from .tools.phylogeny import phylogenetic_placement as pp_place
+                reason = ("was NOT called" if payload is None
+                          else f"returned error: {payload.get('error','?')}")
+                log(
+                    f"[Override] phylogenetic_placement {reason} for "
+                    f"{final_result.taxonomy.family} — running it now."
+                )
+                payload = pp_place(raw_seq, final_result.taxonomy.family or "")
+
+            if payload and "error" not in payload:
+                lca = payload.get("lca_classification", {})
+                lca_genus = lca.get("Genus", "")
+                lca_species = lca.get("Species", "")
+                lca_family = lca.get("Family", "")
+                placement_novel = payload.get("novel_species", False)
+                model_genus = (final_result.taxonomy.genus or "").strip()
+                model_novel = bool(final_result.novel_species)
+
+                genus_mismatch = (lca_genus and
+                                  lca_genus.lower() != model_genus.lower())
+                novel_mismatch = (placement_novel and not model_novel)
+
+                if genus_mismatch or novel_mismatch:
+                    reasons = []
+                    if genus_mismatch:
+                        reasons.append(
+                            f"genus: model='{model_genus}' placement='{lca_genus}'"
+                        )
+                    if novel_mismatch:
+                        reasons.append(
+                            f"novel_species: model={model_novel} placement=True "
+                            f"({'; '.join(payload.get('novel_reasons',['?']))})"
+                        )
+                    log(
+                        f"[Override] phylogenetic placement overrides model: "
+                        f"{'; '.join(reasons)} "
+                        f"(LWR={payload.get('best_placement',{}).get('LWR','?')})"
+                    )
+
+                    final_result.taxonomy.genus = lca_genus or None
+                    final_result.taxonomy.family = lca_family or final_result.taxonomy.family
+                    if placement_novel:
+                        final_result.taxonomy.species = (
+                            f"{lca_genus} sp. (novel, "
+                            f"{'; '.join(payload.get('novel_reasons',[]))})"
+                        )
+                        final_result.novel_species = True
+                    elif lca_species:
+                        final_result.taxonomy.species = lca_species
+                        final_result.novel_species = False
+
+                    final_result.evidence = [Evidence(
+                        method="phylogenetic_placement",
+                        region=f"{payload.get('marker','?')} marker gene",
+                        value=f"LWR={payload.get('best_placement',{}).get('LWR','?')}",
+                        threshold=None,
+                        conclusion=(
+                            f"EPA-ng placement on {final_result.taxonomy.family} "
+                            f"reference tree ({payload.get('ref_tips','?')} tips). "
+                            f"LCA: {lca_genus}/{lca_species or 'novel'}."
+                        ),
+                    )]
+    except Exception as e:
+        log(f"[Override] phylogenetic placement override failed: {e}")
 
     # Tool-override: when the agent claims Coronaviridae, the deterministic
     # DEmARC PUD pipeline is authoritative. Some models (notably MiniMax) skip

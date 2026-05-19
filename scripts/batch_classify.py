@@ -88,6 +88,7 @@ async def classify_one(
     sem: asyncio.Semaphore,
     out_dir: Path,
     family_hint: str,
+    model: str,
     timeout_sec: int,
     log: logging.Logger,
     counter: dict,
@@ -113,7 +114,11 @@ async def classify_one(
             try:
                 resp = await client.post(
                     f"{api}/classify",
-                    json={"fasta": fasta_text, "family_hint": family_hint},
+                    json={
+                        "fasta": fasta_text,
+                        "family_hint": family_hint,
+                        "model": model,
+                    },
                     timeout=30,
                 )
                 data = resp.json()
@@ -506,6 +511,7 @@ async def main(args: argparse.Namespace):
     log.info(f"  Input:    {args.input}")
     log.info(f"  Output:   {out_dir}")
     log.info(f"  API:      {args.api}")
+    log.info(f"  Model:    {args.model}")
     log.info(f"  Parallel: {args.parallel}")
     if args.family:
         log.info(f"  Family:   {args.family}")
@@ -544,7 +550,8 @@ async def main(args: argparse.Namespace):
             tasks.append(
                 classify_one(
                     client, args.api, seq_id, header, sequence,
-                    i, sem, out_dir, args.family, args.timeout, log, counter,
+                    i, sem, out_dir, args.family, args.model,
+                    args.timeout, log, counter,
                 )
             )
         rows = await asyncio.gather(*tasks)
@@ -590,6 +597,9 @@ Examples:
     p.add_argument("--api", default="http://localhost:18231", help="ICTV Agent API URL (default: localhost:18231)")
     p.add_argument("--parallel", type=int, default=4, help="Max concurrent classifications (default: 4)")
     p.add_argument("--family", default="", help="Optional family hint (e.g. Coronaviridae)")
+    p.add_argument("--model", default="deepseek-v4-flash",
+                   help="LLM model to use (default: deepseek-v4-flash via DeepSeek API). "
+                        "Also available: deepseek-v4-pro (higher quality, slower).")
     p.add_argument("--timeout", type=int, default=600, help="Per-sequence timeout in seconds (default: 600)")
 
     args = p.parse_args()

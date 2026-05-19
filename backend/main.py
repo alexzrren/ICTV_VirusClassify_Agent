@@ -74,6 +74,7 @@ async def _run_classification(job_id: str, req: ClassifyRequest):
                 max_steps=req.max_steps,
                 step_callback=on_step,
                 family_hint=req.family_hint,
+                model_override=(req.model or None),
             )
             _jobs[job_id].result = result
             _jobs[job_id].status = JobStatus.done

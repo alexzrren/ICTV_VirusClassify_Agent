@@ -17,10 +17,11 @@ set -e
 
 PORT=${1:-18231}
 
-# Default LLM config (volcano engine GLM-4.7, Anthropic-compatible)
-export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:?Please set ANTHROPIC_API_KEY (Volcano Engine key for GLM-4.7)}"
-export ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-https://ark.cn-beijing.volces.com/api/coding}"
-export CLAUDE_MODEL="${CLAUDE_MODEL:-glm-4.7}"
+# Default LLM config (DeepSeek official API, Anthropic-compatible)
+# Base URL must NOT include /v1/messages — the Anthropic SDK appends that itself.
+export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:?Please set ANTHROPIC_API_KEY (DeepSeek API key)}"
+export ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-https://api.deepseek.com/anthropic}"
+export CLAUDE_MODEL="${CLAUDE_MODEL:-deepseek-v4-flash}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Activate micromamba base environment if available
