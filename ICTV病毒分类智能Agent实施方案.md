@@ -597,6 +597,124 @@ Bioinformatics, Nucleic Acids Research, Virus Evolution, PLOS Computational Biol
 
 # 进展日志
 
+## 2026年5月14日
+
+**系统发育放置（EPA-ng）集成 + DeepSeek API 迁移 + 多层抗幻觉修复**
+
+### 1. 背景与动机
+
+9科362序列Benchmark暴露了两个结构性缺陷：
+
+- **纯定性标准科**（Astroviridae 等）：ICTV 定义标准为"phylogenetic clustering + host range + genome organization"，无任何数值阈值。Agent 的 identity/p-distance 工具链无法 uphold 这类标准。
+- **编号种科**（Papillomaviridae 属准确率 52%、Parvoviridae 属准确率 90%）：ICTV 编号 binomial（如 *Alphapapillomavirus 14* vs *7*，*Bocaparvovirus primate1* vs *2*）基于系统发育聚类而非 p-distance。L1/RdRp 蛋白跨属保守导致 BLAST hit 歧义，agent 的 BLAST → p-distance → threshold 路径系统性地失败。
+
+已有基础设施：`/home/renzirui/Projects/ICTV/ictv_classifier/` 已为 **31 科** 构建了 IQ-TREE 参考树 + HMM marker profiles + EPA-ng placement pipeline + LCA 分类脚本。可复用。
+
+### 2. 可行性验证
+
+用 **LR861987.1**（Papillomaviridae，真相=*Alphapapillomavirus 14*，Agent identity-based 错判=*Alphapapillomavirus 7*）跑通完整 EPA-ng 管线：
+
+| 步骤 | 工具 | 耗时 | 结果 |
+|---|---|---|---|
+| Marker 提取 | `crop_by_hmm.py` (Rep/E1 HMM) | ~1s | 684 aa ✓ |
+| Query 对齐参考 MSA | `mafft --add --keeplength` | ~2s | 363 aa MSA ✓ |
+| 模型评估 | `raxml-ng --evaluate` | 2.9s | LG+I+G4 ✓ |
+| 系统发育放置 | `epa-ng` | <1s | LWR=**1.000** ✓ |
+| LCA 分类 | `ete4` + VMR | <1s | *Alphapapillomavirus 14* ✓ |
+
+**<8 秒，LWR=1.000，精确命中正确的 ICTV 物种。** 对比 identity-based 方法（genus 对但 species# 错），EPA-ng placement 实现了种级精度。
+
+### 3. 第 13 个工具：`phylogenetic_placement`
+
+新建 `backend/tools/phylogeny.py`（~370 行）：
+
+- **单函数接口**：`phylogenetic_placement(query_nt: str, family: str) → dict`
+- **5 步管线**：HMM marker 提取 → MAFFT 对齐 → raxml-ng 模型评估 → EPA-ng 放置 → ete4 LCA 分类 + 新种判定
+- **RNA/DNA 双轨**：RNA 病毒用 RdRp marker，DNA 病毒用 Rep/E1 marker
+- **覆盖 31 科**：所有有参考树的科都可调用
+- **返回结构**：lca_classification（Realm→Species 完整层级）、best_placement（LWR/edge/pendant）、novel_species + novel_reasons、confidence
+
+发现的关键工程问题（均已处理）：
+- 参考 MSA header 必须清洗（去 ORF 注释，只留 accession.version 才能匹配树 tip label）
+- Query 必须先 MAFFT `--keeplength` 对齐（EPA-ng 要求 query 和 ref MSA 同宽）
+- raxml-ng 只跑参考 MSA（不能含 query 行，否则 "more sequences than expected"）
+- jplace 格式是 `[edge_num, likelihood, LWR, distal, pendant]` 而非 dict
+- 所有子进程需 `_env_with_path()` 注入 micromamba/bin 到 PATH
+
+### 4. Agent 集成
+
+**工具注册**：
+- `backend/agent.py`：TOOLS 列表新增 `phylogenetic_placement`（第 13 个工具）
+- `_execute_tool` 分发：新工具自动注入 `genome_nt`，调用 `phylogeny.py`
+- `genome_nt` 注入列表新增 `"phylogenetic_placement"`
+
+**系统提示更新**：
+- 新增段落："Use phylogenetic_placement for families that need phylogenetic clustering"
+- 明确 Papillomaviridae / Astroviridae / Parvoviridae 三个科为 placement 优先
+- 强调 placement 结果 **AUTHORITATIVE and BINDING**——必须 verbatim copy LCA genus
+
+**后处理覆盖层（L2.5）**：
+- 插入在 L2（通用 BLAST→VMR）和 L3（Corona 确定性）之间
+- **首次实现**（已废弃）：仅在"模型没调 placement"时主动跑并覆盖。存在盲区——模型调了 placement 拿到正确答案后又在后续步骤中用自己的搜索覆盖掉
+- **修复版**（当前）：`family ∈ {Papilloma,Parvo,Astro}` → 始终检查 placement 结果 vs 模型输出
+  - 若 placement genus ≠ model genus → 覆盖（使用 placement 答案）
+  - 若 placement 说 novel=true 但模型标了 false → 强制 novel=true
+  - 证据链、reasoning 同步替换为 placement 的计算值
+  - 无论模型是否主动调用 placement，最终结果以 placement 为准
+
+### 5. DeepSeek v4 Flash 集成与测评
+
+**API 迁移**：从 SiliconFlow/火山引擎切至 DeepSeek 官方 API
+- Base URL: `https://api.deepseek.com/anthropic`
+- 模型: `deepseek-v4-flash`
+- `run.sh` + `batch_classify.py` 默认模型已更新
+
+**25 序列 Benchmark（5 科 × 5 条）**：
+
+| Family | N | Family% | Genus% | Sp+Nov% | placement 调用 |
+|---|---|---|---|---|---|
+| Coronaviridae | 5 | 100% | 100% | 80% | 0 |
+| Flaviviridae | 5 | 80% | 80% | 60% | 2 |
+| Papillomaviridae | 5 | 100% | 80% | 40% | **5/5** |
+| Hepeviridae | 5 | 100% | 80% | 80% | 4 |
+| Picornaviridae | 5 | 80% | 80% | 40% | 1 |
+| **TOTAL** | **25** | **92%** | **84%** | **60%** | **12/25** |
+
+**API 消耗**：
+- Input: 228,124 tokens | Output: 60,250 tokens
+- Total billed: **288,374 tokens** | Avg: **11,534 tokens/seq**
+- Wall time: 250s (10s avg/seq, 5 parallel)
+
+### 6. 根因分析：placement 被模型忽略的三层问题
+
+Papillomaviridae 3 个 genus 错误（MW410986.1 / EF591300.1 / PP781982.1）有完全相同的根因：
+
+**Layer 1 — BLAST 不可用**：DeepSeek 服务器上的 BLAST DB 未正确配置，`blast_and_compare`/`blast_search` 静默返回错误。模型被迫绕路（ICTv docs → manual lookup → fetch_reference_sequence），增加了后续出错的机会。
+
+**Layer 2 — 模型忽视 placement 结果**：以 MW410986.1 为例，模型在 Step 15 调了 `phylogenetic_placement`，Step 16 正确输出了 "Genus: Dyoiotapapillomavirus"，但在 Step 20 又发起了一轮手动 search/lookup，最终输出变成了 *Dyozetapapillomavirus 1*——用自己的搜索覆盖了 placement 的正确答案。EF591300.1 / PP781982.1 同理：placement 返回 `novel_species=true`，模型输出固定为 *Alphapapillomavirus 1*, `novel=false`。
+
+**Layer 3 — 原 override 逻辑的盲区**：原 L2.5 覆盖代码的条件是 `if NOT called_placement`——只在模型"没调"时主动跑。模型调了 placement 但**不采纳**结果的情况完全没覆盖。
+
+**修复**：L2.5 override 改为 binding placement 模式——
+- 不管模型调没调，始终检查 placement 结果 vs 模型最终输出
+- genus 不一致 → 覆盖 | novel_species 标注不一致 → 覆盖
+- 系统提示同时告知模型 placement 是 binding 的——后处理会覆盖不一致的输出
+
+### 7. 工具与功能列表更新
+
+| 工具 | 说明 | 状态 |
+|---|---|---|
+| `phylogenetic_placement` | EPA-ng 系统发育放置 → LCA 分类 + 新种判定 | **新增** |
+| 抗幻觉防御层 L2.5 | Placement binding override（Papilloma/Parvo/Astro） | **新增** |
+| `scripts/score_benchmark.py` | Benchmark 准确率评分脚本（支持 per-family 分析） | **新增** |
+| `scripts/clear_cache.py` | 缓存清理工具 | 已有 |
+| `scripts/benchmark_models.sh` | 多模型对比驱动脚本 | 已有 |
+| `scripts/generate_benchmark_report.py` | HTML 可视化报告生成 | 已有 |
+| `docs/ARCHITECTURE.md` | Mermaid 流程图 + 架构文档 | 已有 |
+| `docs/BENCHMARK_REPORT.html` | 9 科 362 序列完整可视化报告 | 已有 |
+
+---
+
 ## 2026年4月17日
 
 **批量分类工具 + VMR权威数据库 + 抗幻觉防御层 + Token追踪**
